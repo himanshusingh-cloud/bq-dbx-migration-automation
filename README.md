@@ -1,4 +1,4 @@
-# Analytics API Framework
+# BQ->DBX Migration Testing Automation Framework
 
 Config-driven API test framework that validates Bq Analytics APIs by comparing **BigQuery vs Databricks** results. Works for any client by fetching config from `/rpax/user/config` — no hardcoded clients or per-client JSON files.
 
