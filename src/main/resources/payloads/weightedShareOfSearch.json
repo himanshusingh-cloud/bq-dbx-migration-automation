@@ -1,0 +1,1 @@
+{"parameters":{"client_id":"{{client_id}}","categories":[],"sub_categories":[],"journeys":[],"start_date":"{{start_date}}","end_date":"{{end_date}}","threshold":0.85,"retailer_revenues":[]},"labels":{"source":"core-service","client_id":"{{client_id}}","user_id":"unified-user"}}

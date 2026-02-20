@@ -1,0 +1,46 @@
+server:
+  port: 8080
+
+orchestrator:
+  prod-base-url: https://prod.ef.uk.com
+  staging-base-url: https://test.ef.uk.com
+  # Email used when fetching /rpax/user/config (default filters). x-client-id comes from request body.
+  config-user-email: ${ORCHESTRATOR_CONFIG_USER_EMAIL:vijay.h@commerceiq.ai}
+  report:
+    subject: Analytics API Test Report
+    # Base URL for report link in API response (e.g. http://localhost:8080)
+    base-url: ${REPORT_BASE_URL:http://localhost:8080}
+    # AWS SES: from email must be verified in SES. Uses IAM or ~/.aws/credentials
+    ses:
+      from-email: ${SES_FROM_EMAIL:himanshu.singh@commerceiq.ai}
+  # Query Genie / alert-validation-detail base URL for API Diff page
+  query-genie-base-url: ${ORCHESTRATOR_QUERY_GENIE_BASE_URL:http://34-79-29-181.ef.uk.com}
+validation:
+  api-base-url: ${VALIDATION_API_BASE_URL:http://34-79-29-181.ef.uk.com}
+  # Required for alert-validation-detail - set VALIDATION_ACCESS_TOKEN env var
+  access-token: ${VALIDATION_ACCESS_TOKEN:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJoaW1hbnNodS5zaW5naEBjb21tZXJjZWlxLmFpIiwicm9sZSI6InVzZXIiLCJuYW1lIjoiSGltYW5zaHUgU2luZ2giLCJleHAiOjIwODQ5NDI5MzEsImlhdCI6MTc2OTU4MjkzMX0.Ke45UhbxOq08noIK0emlz4gaN-xetmP39wkRPkYeBRI}
+  # Poll alert-validation-detail/{UUID} until data or timeout
+  xqg-poll-interval-seconds: ${VALIDATION_XQG_POLL_INTERVAL:5}
+  xqg-poll-timeout-seconds: ${VALIDATION_XQG_POLL_TIMEOUT:180}
+  # Timeout for entire validation run - if not completed within this time, stop and mark suite completed
+  timeout-minutes: ${VALIDATION_TIMEOUT_MINUTES:5}
+
+spring:
+  datasource:
+    # Default: H2 (local file). For MySQL: use profile 'test' - Dspring-boot.run.profiles=test (see DB_SETUP.md)
+    url: jdbc:h2:file:./data/analytics;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+logging:
+  level:
+    com.analytics: INFO
+    com.analytics.orchestrator: DEBUG
+    com.analytics.orchestrator.ValidationService: DEBUG
+    # DbMigrationRunner: hide "Migration skipped" DEBUG when columns already exist
+    com.analytics.orchestrator.DbMigrationRunner: INFO

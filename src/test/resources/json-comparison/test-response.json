@@ -1,0 +1,181 @@
+[
+    {
+        "assortment_compliance_summary": {
+            "assortment_compliance_avg": 49.39984863913578,
+            "locations": 6257,
+            "retailer_assortment_compliance_avg": [
+                {
+                    "retailer": "Metro-FR",
+                    "compliance": 60.1010101010101,
+                    "locations": 99
+                },
+                {
+                    "retailer": "Intermarche-Drive-FR",
+                    "compliance": 33.34975369458128,
+                    "locations": 2030
+                },
+                {
+                    "retailer": "Auchan",
+                    "compliance": 75.68060690449897,
+                    "locations": 353
+                },
+                {
+                    "retailer": "Carrefour-FR",
+                    "compliance": 55.65465673456118,
+                    "locations": 1841
+                },
+                {
+                    "retailer": "Le-Clerc",
+                    "compliance": 59.016022577525405,
+                    "locations": 871
+                },
+                {
+                    "retailer": "CoursesU-FR",
+                    "compliance": 93.23449546123196,
+                    "locations": 1007
+                },
+                {
+                    "retailer": "Chronodrive-FR",
+                    "compliance": 88.14823874755382,
+                    "locations": 56
+                }
+            ],
+            "assortment_data": [
+                {
+                    "date": {
+                        "value": "2026-02-07"
+                    },
+                    "compliance": 55.93371943728071
+                },
+                {
+                    "date": {
+                        "value": "2026-02-09"
+                    },
+                    "compliance": 42.86597784099085
+                }
+            ]
+        },
+        "share_of_portfolio_summary": {
+            "your_share_of_portfolio_avg": 21.099291428252517,
+            "key_competitor_share_of_portfolio_avg": 77.77357574086437,
+            "other_share_of_portfolio_avg": 1.1271328308831188,
+            "retailer_share_of_portfolio_avg": [
+                {
+                    "retailer": "Metro-FR",
+                    "your_share": 6.9579017707985304,
+                    "competitor_share": 92.24022719679252,
+                    "other_share": 0.8018710324089542,
+                    "locations": 99
+                },
+                {
+                    "retailer": "Auchan",
+                    "your_share": 18.2923149530758,
+                    "competitor_share": 80.77422998661518,
+                    "other_share": 0.9334550603090112,
+                    "locations": 353
+                },
+                {
+                    "retailer": "Intermarche-Drive-FR",
+                    "your_share": 23.736991367915454,
+                    "competitor_share": 76.26300863208455,
+                    "other_share": 0,
+                    "locations": 2030
+                },
+                {
+                    "retailer": "Le-Clerc",
+                    "your_share": 16.866285854677233,
+                    "competitor_share": 81.55841972722483,
+                    "other_share": 1.5752944180979445,
+                    "locations": 871
+                },
+                {
+                    "retailer": "Carrefour-FR",
+                    "your_share": 22.277382174408547,
+                    "competitor_share": 75.53066981353206,
+                    "other_share": 2.1919480120593917,
+                    "locations": 1841
+                },
+                {
+                    "retailer": "CoursesU-FR",
+                    "your_share": 20.425097084837073,
+                    "competitor_share": 79.41268864066785,
+                    "other_share": 0.1622142744950776,
+                    "locations": 1007
+                },
+                {
+                    "retailer": "Chronodrive-FR",
+                    "your_share": 31.323887343532686,
+                    "competitor_share": 68.16759388038943,
+                    "other_share": 0.508518776077886,
+                    "locations": 56
+                }
+            ],
+            "portfolio_data": [
+                {
+                    "date": {
+                        "value": "2026-02-07"
+                    },
+                    "your_share": 20.889859639848982,
+                    "competitor_share": 78.0623545585206,
+                    "other_share": 1.0477858016304173
+                },
+                {
+                    "date": {
+                        "value": "2026-02-09"
+                    },
+                    "your_share": 21.308723216656052,
+                    "competitor_share": 77.48479692320814,
+                    "other_share": 1.2064798601358202
+                }
+            ]
+        },
+        "spotlights_target_compliance": {
+            "target": 90,
+            "retailers": [
+                {
+                    "retailer": "CoursesU-FR",
+                    "compliance": 93.23449546123196
+                }
+            ]
+        },
+        "spotlights_minimum_compliance": {
+            "minimum": 90,
+            "retailers": [
+                {
+                    "retailer": "Intermarche-Drive-FR",
+                    "compliance": 33.34975369458128
+                },
+                {
+                    "retailer": "Le-Clerc",
+                    "compliance": 59.016022577525405
+                },
+                {
+                    "retailer": "Metro-FR",
+                    "compliance": 60.1010101010101
+                },
+                {
+                    "retailer": "Auchan",
+                    "compliance": 75.68060690449897
+                },
+                {
+                    "retailer": "Carrefour-FR",
+                    "compliance": 55.65465673456118
+                },
+                {
+                    "retailer": "Chronodrive-FR",
+                    "compliance": 88.14823874755382
+                }
+            ]
+        },
+        "data_excluded_retailers": [],
+        "migrated_retailers": [
+            {"retailer": "Auchan"},
+            {"retailer": "Carrefour-FR"},
+            {"retailer": "CoursesU-FR"},
+            {"retailer": "Intermarche-Drive-FR"},
+            {"retailer": "Le-Clerc"},
+            {"retailer": "Metro-FR"},
+            {"retailer": "Chronodrive-FR"}
+        ]
+    }
+]

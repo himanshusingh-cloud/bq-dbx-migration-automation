@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>API Diff - JSON Comparison</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f1419;
+            --bg-card: #1a2332;
+            --bg-card-hover: #243044;
+            --accent: #00d4aa;
+            --prod: #ff6b6b;
+            --prod-bg: rgba(255,107,107,0.15);
+            --test: #4dabf7;
+            --test-bg: rgba(77,171,247,0.15);
+            --pass: #51cf66;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --border: #30363d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--accent); }
+        .subtitle { font-size: 0.9rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 1rem; }
+        .btn-back { color: var(--accent); text-decoration: none; font-size: 0.9rem; margin-bottom: 1rem; display: inline-block; }
+        .btn-back:hover { text-decoration: underline; }
+        .meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        .meta-item {
+            background: var(--bg-card);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .meta-item strong { color: var(--accent); margin-right: 0.5rem; }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+        .status-badge.match { background: rgba(81,207,102,0.2); color: var(--pass); }
+        .status-badge.mismatch { background: rgba(255,107,107,0.2); color: var(--prod); }
+        .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem; }
+        @media (max-width: 1200px) { .panels { grid-template-columns: 1fr; } }
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-header.test { background: rgba(77,171,247,0.15); color: var(--test); }
+        .panel-header.prod { background: rgba(255,107,107,0.15); color: var(--prod); }
+        .panel-body {
+            padding: 1rem;
+            max-height: 70vh;
+            overflow: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .no-mismatch-msg {
+            background: rgba(81,207,102,0.15);
+            color: var(--pass);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        .mismatch-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+        .mismatch-table th, .mismatch-table td {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .mismatch-table th { color: var(--text-muted); font-weight: 600; }
+        .mismatch-table .path { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
+        .mismatch-table .prod-val { background: var(--prod-bg); color: var(--prod); padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all; }
+        .mismatch-table .test-val { background: var(--test-bg); color: var(--test); padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all; }
+        .diff-line { padding: 0.15rem 0.5rem; margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+        .diff-line.added { background: var(--test-bg); color: var(--test); border-left: 3px solid var(--test); }
+        .diff-line.removed { background: var(--prod-bg); color: var(--prod); border-left: 3px solid var(--prod); }
+        .diff-line.unchanged { color: var(--text-muted); }
+        .empty { color: var(--text-muted); font-style: italic; padding: 0.5rem 0; }
+        .loading { color: var(--text-muted); }
+        .curl-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--accent); padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .curl-btn:hover { background: var(--bg-card-hover); }
+        .curl-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+        .curl-modal.show { display: flex; }
+        .curl-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; max-width: 90%; max-height: 80vh; overflow: auto; }
+        .curl-content pre { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; white-space: pre-wrap; word-break: break-all; margin: 0; }
+        .curl-close { float: right; cursor: pointer; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="#" id="backLink" class="btn-back">&larr; Back to Report</a>
+        <h1>API Diff: <span id="apiIdDisplay">-</span></h1>
+        <p class="subtitle">Suite ID: <span id="suiteIdDisplay">-</span></p>
+        <div id="content">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+    <script>
+        var pathParts = window.location.pathname.split('/').filter(Boolean);
+        var suiteId = pathParts[pathParts.indexOf('json-comparison-report') + 1] || '';
+        var apiId = pathParts[pathParts.indexOf('api') + 1] || '';
+        document.getElementById('suiteIdDisplay').textContent = suiteId || '(none)';
+        document.getElementById('apiIdDisplay').textContent = decodeURIComponent(apiId || '(none)');
+        document.getElementById('backLink').href = '/json-comparison-report/' + suiteId;
+
+        function escapeHtml(s) {
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function formatJson(str) {
+            if (!str) return '(no data)';
+            try {
+                var parsed = JSON.parse(str);
+                return JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                return str;
+            }
+        }
+
+        function renderDiff(data) {
+            var match = data.match === true;
+            var mismatches = data.mismatches || [];
+            var is503 = mismatches.some(function(m) { return (m.test || m.prod || '').indexOf('503') >= 0; });
+            var html = '';
+            if (is503) {
+                html += '<div class="no-mismatch-msg" style="background:rgba(255,107,107,0.2);color:var(--prod);margin-bottom:1rem">' +
+                    (mismatches[0] ? escapeHtml(String(mismatches[0].test || mismatches[0].prod || '')) : 'API returned 503') + '</div>';
+            }
+            html += '<div class="meta">';
+            html += '<div class="meta-item"><span class="status-badge ' + (match ? 'match' : 'mismatch') + '">' + (match ? 'Match' : 'Mismatch') + '</span></div>';
+            html += '<div class="meta-item"><strong>Test rows:</strong>' + (data.testRowCount != null ? data.testRowCount : '-') + '</div>';
+            html += '<div class="meta-item"><strong>Prod rows:</strong>' + (data.prodRowCount != null ? data.prodRowCount : '-') + '</div>';
+            if (data.emptyMessage) html += '<div class="meta-item" style="color:var(--text-muted)">' + escapeHtml(data.emptyMessage) + '</div>';
+            if (data.testCurl) html += '<div class="meta-item"><button class="curl-btn" data-curl-id="test">Test CURL</button></div>';
+            if (data.prodCurl) html += '<div class="meta-item"><button class="curl-btn" data-curl-id="prod">Prod CURL</button></div>';
+            if (data.queryGenieUrl) html += '<div class="meta-item"><a href="' + escapeHtml(data.queryGenieUrl) + '" target="_blank" class="curl-btn" style="text-decoration:none;display:inline-block">Query Genie</a></div>';
+            html += '</div>';
+
+            if (match) {
+                html += '<div class="panels">';
+                html += '<div class="panel"><div class="panel-header test">Test Response</div><div class="panel-body">' + escapeHtml(formatJson(data.testResponse)) + '</div></div>';
+                html += '<div class="panel"><div class="panel-header prod">Prod Response</div><div class="panel-body">' + escapeHtml(formatJson(data.prodResponse)) + '</div></div>';
+                html += '</div>';
+                html += '<div class="no-mismatch-msg">No any mismatch for this API</div>';
+            } else {
+                var mismatches = data.mismatches || [];
+                if (mismatches.length > 0) {
+                    html += '<table class="mismatch-table"><thead><tr><th>Path</th><th>Prod</th><th>Test</th></tr></thead><tbody>';
+                    for (var j = 0; j < mismatches.length; j++) {
+                        var m = mismatches[j];
+                        html += '<tr><td class="path">' + escapeHtml(m.path || '') + '</td>';
+                        html += '<td><span class="prod-val">' + escapeHtml(String(m.prod != null ? m.prod : '')) + '</span></td>';
+                        html += '<td><span class="test-val">' + escapeHtml(String(m.test != null ? m.test : '')) + '</span></td></tr>';
+                    }
+                    html += '</tbody></table>';
+                }
+                html += '<div class="panels">';
+                html += '<div class="panel"><div class="panel-header test">Test Response</div><div class="panel-body">' + escapeHtml(formatJson(data.testResponse)) + '</div></div>';
+                html += '<div class="panel"><div class="panel-header prod">Prod Response</div><div class="panel-body">' + escapeHtml(formatJson(data.prodResponse)) + '</div></div>';
+                html += '</div>';
+            }
+
+            document.getElementById('content').innerHTML = html;
+            window._lastCurlData = data;
+            document.querySelectorAll('.curl-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var id = this.getAttribute('data-curl-id');
+                    var curl = window._lastCurlData && window._lastCurlData[id + 'Curl'];
+                    if (curl) showCurlModal(curl);
+                });
+            });
+        }
+
+        function showCurlModal(curl) {
+            var modal = document.getElementById('curlModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'curlModal';
+                modal.className = 'curl-modal';
+                modal.innerHTML = '<div class="curl-content"><span class="curl-close" onclick="closeCurlModal()">&times;</span><h3 style="margin-bottom: 0.5rem">CURL Command</h3><pre id="curlContent"></pre><button class="curl-btn" style="margin-top: 1rem" onclick="copyCurl()">Copy to clipboard</button></div>';
+                modal.onclick = function(e) { if (e.target === modal) closeCurlModal(); };
+                document.body.appendChild(modal);
+            }
+            document.getElementById('curlContent').textContent = curl;
+            modal.classList.add('show');
+        }
+
+        function closeCurlModal() {
+            var m = document.getElementById('curlModal');
+            if (m) m.classList.remove('show');
+        }
+
+        function copyCurl() {
+            var pre = document.getElementById('curlContent');
+            if (pre) {
+                navigator.clipboard.writeText(pre.textContent).then(function() { alert('Copied to clipboard'); });
+            }
+        }
+
+        async function fetchData() {
+            if (!suiteId || !apiId) {
+                document.getElementById('content').innerHTML = '<div class="empty">Missing suite ID or API ID in URL.</div>';
+                return;
+            }
+            try {
+                var r = await fetch('/api/json-comparison/' + encodeURIComponent(suiteId) + '/api/' + encodeURIComponent(apiId));
+                if (!r.ok) {
+                    var err = await r.json().catch(function() { return {}; });
+                    document.getElementById('content').innerHTML = '<div class="empty">' + escapeHtml(err.error || r.statusText) + '</div>';
+                    return;
+                }
+                var data = await r.json();
+                renderDiff(data);
+            } catch (e) {
+                document.getElementById('content').innerHTML = '<div class="empty">Failed to load: ' + escapeHtml(e.message) + '</div>';
+            }
+        }
+
+        fetchData();
+    </script>
+</body>
+</html>

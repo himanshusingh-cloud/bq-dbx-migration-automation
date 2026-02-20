@@ -1,0 +1,31 @@
+# MySQL for Test and Prod environments
+# test -> https://test.ef.uk.com  |  prod -> https://prod.ef.uk.com
+#
+# Usage: docker compose up -d
+# Run app: mvn spring-boot:run -Dspring-boot.run.profiles=test
+#
+# Credentials: Host=localhost Port=3306 User=analytics Password=analytics
+# Databases: analytics_test, analytics_prod
+#
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: analytics_test
+      MYSQL_USER: analytics
+      MYSQL_PASSWORD: analytics
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  mysql_data:

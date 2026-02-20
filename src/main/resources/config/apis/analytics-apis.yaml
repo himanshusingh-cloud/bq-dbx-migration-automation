@@ -1,0 +1,82 @@
+apiGroup: analytics
+apis:
+  - apiId: productBasics
+    endpoint: /analytics/query/productBasics
+    method: POST
+    template: productBasics
+    dataProvider: dateRanges
+  - apiId: productBasicsSKUs
+    endpoint: /analytics/query/productBasicsSKUs
+    method: POST
+    template: productBasicsSKUs
+    dataProvider: skuBrands
+  - apiId: productBasicsExpansion
+    endpoint: /analytics/query/productBasicsExpansion
+    method: POST
+    template: productBasicsExpansion
+    dataProvider: expansionProducts
+  - apiId: advancedContent
+    endpoint: /analytics/query/advancedContent
+    method: POST
+    template: advancedContent
+    dataProvider: dateRanges
+  - apiId: advancedContentSKUs
+    endpoint: /analytics/query/advancedContentSKUs
+    method: POST
+    template: advancedContentSKUs
+    dataProvider: advancedContentSkuBrands
+  - apiId: productTests
+    endpoint: /analytics/query/productTests
+    method: POST
+    template: productTests
+    dataProvider: dateRanges
+  - apiId: contentScores
+    endpoint: /analytics/query/contentScores
+    method: POST
+    template: contentScores
+    dataProvider: dateRanges
+  - apiId: contentSpotlights
+    endpoint: /analytics/query/contentSpotlights
+    method: POST
+    template: contentSpotlights
+    dataProvider: dateRanges
+  - apiId: contentOptimizationBrandPerRetailer
+    endpoint: /analytics/query/contentOptimizationBrandPerRetailer
+    method: POST
+    template: contentOptimizationBrandPerRetailer
+    dataProvider: dateRanges
+  - apiId: contentOptimizationSkuPerBrand
+    endpoint: /analytics/query/contentOptimizationSkuPerBrand
+    method: POST
+    template: contentOptimizationSkuPerBrand
+    dataProvider: dateRanges
+  - apiId: productComplianceOverview
+    endpoint: /analytics/query/productComplianceOverview
+    method: POST
+    template: productComplianceOverview
+    dataProvider: dateRanges
+  - apiId: productComplianceScoreband
+    endpoint: /analytics/query/productComplianceScoreband
+    method: POST
+    template: productComplianceScoreband
+    dataProvider: dateRanges
+  - apiId: shareOfSearchByRetailerV2
+    endpoint: /analytics/query/shareOfSearchByRetailerV2
+    method: POST
+    template: shareOfSearchByRetailerV2
+    dataProvider: dateRanges
+  - apiId: shareOfSearchByJourneyV2
+    endpoint: /analytics/query/shareOfSearchByJourneyV2
+    method: POST
+    template: shareOfSearchByJourneyV2
+    dataProvider: dateRanges
+  - apiId: shareOfShelfRetailerV2
+    endpoint: /analytics/query/shareOfShelfRetailerV2
+    method: POST
+    template: shareOfShelfRetailerV2
+    dataProvider: dateRanges
+  - apiId: shareOfShelfV2
+    endpoint: /analytics/query/shareOfShelfV2
+    method: POST
+    template: shareOfShelfV2
+    dataProvider: dateRanges

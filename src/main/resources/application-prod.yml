@@ -1,0 +1,16 @@
+# Prod environment - Production MySQL (Cloud SQL or dedicated prod server)
+# Run: mvn spring-boot:run -Dspring.profiles.active=prod
+# Required env vars: DB_URL, DB_USERNAME, DB_PASSWORD (no defaults for prod)
+spring:
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect

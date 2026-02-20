@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Validation Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f1419;
+            --bg-card: #1a2332;
+            --bg-card-hover: #243044;
+            --accent: #00d4aa;
+            --accent-dim: #00a884;
+            --fail: #ff6b6b;
+            --pass: #51cf66;
+            --warn: #ffd43b;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --border: #30363d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+            background-image: radial-gradient(ellipse at 20% 0%, rgba(0,212,170,0.08) 0%, transparent 50%),
+                              radial-gradient(ellipse at 80% 100%, rgba(255,107,107,0.05) 0%, transparent 50%);
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header-row { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { font-size: 0.9rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .suite-id-badge {
+            display: inline-block;
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent);
+        }
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .filter-bar label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.5rem; }
+        .filter-chk {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            padding: 0.4rem 0.75rem;
+            background: var(--bg-dark);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .filter-chk:hover { border-color: var(--accent); }
+        .filter-chk input { accent-color: var(--accent); }
+        .filter-chk.pass { border-left: 3px solid var(--pass); }
+        .filter-chk.mismatch { border-left: 3px solid var(--warn); }
+        .filter-chk.fail { border-left: 3px solid var(--fail); }
+        .meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        .meta-item {
+            background: var(--bg-card);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .meta-item strong { color: var(--accent); margin-right: 0.5rem; }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-badge.completed { background: rgba(81,207,102,0.2); color: var(--pass); }
+        .status-badge.in-progress { background: rgba(255,212,59,0.2); color: var(--warn); }
+        .section { margin-bottom: 1.5rem; }
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .section.hidden { display: none; }
+        .api-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.5rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .api-card[data-external-link], .api-card[data-show-error] { cursor: pointer; }
+        .api-card[data-external-link]:hover, .api-card[data-show-error]:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); }
+        .api-card.fail { border-left: 4px solid var(--fail); }
+        .api-card.pass { border-left: 4px solid var(--pass); }
+        .api-card.mismatch { border-left: 4px solid var(--warn); }
+        .api-card.no-job { cursor: default; }
+        .api-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.95rem; }
+        .api-details { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 1rem; }
+        .api-details span { display: flex; align-items: center; gap: 0.25rem; }
+        .ext-link-hint { font-size: 0.7rem; color: var(--accent); margin-top: 0.3rem; }
+        .refresh-info { font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .refresh-info .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .error-msg { background: rgba(255,107,107,0.15); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,107,107,0.3); color: var(--fail); margin-top: 1rem; }
+        .empty { color: var(--text-muted); font-style: italic; padding: 0.5rem 0; }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 2rem;
+        }
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 90vw;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 1rem; color: var(--accent); }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1; }
+        .modal-close:hover { color: var(--text); }
+        .modal-body { padding: 1.25rem; overflow: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; }
+        .hidden { display: none !important; }
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .btn-back:hover { color: var(--accent-hover); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="btn-back">&larr; Back to Run Validation</a>
+        <div class="header-row">
+            <div>
+                <h1>Validation Report</h1>
+                <p class="subtitle">Suite ID: <span id="suiteIdDisplay">-</span></p>
+            </div>
+        </div>
+
+        <div class="filter-bar" id="filterBar" style="display:none;">
+            <span style="font-size:0.8rem;color:var(--text-muted);margin-right:0.5rem;">Show:</span>
+            <label class="filter-chk pass">
+                <input type="checkbox" id="filterPass" checked> Passed
+            </label>
+            <label class="filter-chk mismatch">
+                <input type="checkbox" id="filterMismatch" checked> Mismatch
+            </label>
+            <label class="filter-chk fail">
+                <input type="checkbox" id="filterFail" checked> Failed
+            </label>
+        </div>
+
+        <div id="content">
+            <div class="refresh-info"><span class="dot"></span> Loading...</div>
+        </div>
+    </div>
+
+    <div id="modalOverlay" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Detail</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        var VALIDATION_DETAIL_BASE = '{{VALIDATION_DETAIL_BASE}}';
+        var suiteId = window.location.pathname.split('/').filter(Boolean).pop() || '';
+        document.getElementById('suiteIdDisplay').textContent = suiteId || '(none)';
+        var pollInterval = 5000;
+
+        var modalOverlay = document.getElementById('modalOverlay');
+        var modalTitle = document.getElementById('modalTitle');
+        var modalBody = document.getElementById('modalBody');
+        var modalClose = document.getElementById('modalClose');
+
+        modalClose.onclick = function() { modalOverlay.classList.add('hidden'); };
+        modalOverlay.onclick = function(e) { if (e.target === modalOverlay) modalOverlay.classList.add('hidden'); };
+
+        document.getElementById('filterPass').addEventListener('change', applyFilters);
+        document.getElementById('filterMismatch').addEventListener('change', applyFilters);
+        document.getElementById('filterFail').addEventListener('change', applyFilters);
+
+        var lastData = null;
+
+        function applyFilters() {
+            if (!lastData) return;
+            var showPass = document.getElementById('filterPass').checked;
+            var showMismatch = document.getElementById('filterMismatch').checked;
+            var showFail = document.getElementById('filterFail').checked;
+            document.getElementById('sectionFail').classList.toggle('hidden', !showFail);
+            document.getElementById('sectionMismatch').classList.toggle('hidden', !showMismatch);
+            document.getElementById('sectionPass').classList.toggle('hidden', !showPass);
+        }
+
+        async function fetchReport() {
+            if (!suiteId) {
+                document.getElementById('content').innerHTML = '<div class="error-msg">No suite ID in URL. Use /validation-report/{suiteId}</div>';
+                return;
+            }
+            try {
+                var r = await fetch('/api/validation/' + suiteId);
+                if (!r.ok) throw new Error(r.statusText);
+                var data = await r.json();
+                lastData = data;
+                render(data);
+            } catch (e) {
+                document.getElementById('content').innerHTML = '<div class="error-msg">Failed to load: ' + e.message + '</div>';
+            }
+        }
+
+        function showModal(title, content) {
+            modalTitle.textContent = title;
+            modalBody.textContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+            modalBody.className = 'modal-body';
+            modalOverlay.classList.remove('hidden');
+        }
+
+        function render(data) {
+            var status = (data.suiteStatus || '').toLowerCase();
+            var statusClass = status.indexOf('progress') >= 0 ? 'in-progress' : 'completed';
+            var html = '<div class="meta">';
+            html += '<div class="meta-item"><strong>Client</strong>' + (data.client || '-') + '</div>';
+            html += '<div class="meta-item"><strong>Environment</strong>' + (data.environment || '-') + '</div>';
+            html += '<div class="meta-item"><strong>API Group</strong>' + (data.apiGroup || '-') + '</div>';
+            html += '<div class="meta-item"><strong>Dates</strong>' + (data.startDate || '') + ' to ' + (data.endDate || '') + '</div>';
+            html += '<div class="meta-item"><span class="status-badge ' + statusClass + '">' + (data.suiteStatus || 'Unknown') + '</span></div>';
+            html += '</div>';
+
+            html += '<div class="section" id="sectionFail"><div class="section-title">APIs Failed</div>';
+            html += '<p class="section-desc" style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;">APIs that did not run due to errors (HTTP 500, BQ/DBX error, response validation skipped). Click to view error or open validation detail.</p>';
+            html += renderList(data.apisFailed || data.apisWhichFail || [], 'fail', true);
+            html += '</div>';
+
+            html += '<div class="section" id="sectionMismatch"><div class="section-title">APIs with Mismatch</div>';
+            html += '<p class="section-desc" style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;">APIs that ran successfully but have row_count mismatch or diffCount &gt; 0 (BQ ≠ DBX data).</p>';
+            html += renderList(data.apisWithMismatches || [], 'mismatch', false);
+            html += '</div>';
+
+            html += '<div class="section" id="sectionPass"><div class="section-title">APIs Passed</div>';
+            html += renderList(data.apisWithMatches || [], 'pass', false);
+            html += '</div>';
+
+            var isCompleted = (data.suiteStatus || '').toLowerCase() === 'completed';
+            html += '<div class="refresh-info"><span class="dot"></span> ' + (isCompleted ? 'Completed - no auto-refresh' : 'Auto-refreshes every ' + (pollInterval/1000) + 's') + '</div>';
+            document.getElementById('content').innerHTML = html;
+            document.getElementById('filterBar').style.display = 'flex';
+            applyFilters();
+            if (isCompleted) stopPollingIfCompleted();
+        }
+
+        function renderList(arr, cardClass, isFailed) {
+            if (!arr || arr.length === 0) return '<div class="empty">None</div>';
+            return arr.map(function(a) {
+                var details = '<div class="api-details">';
+                if (a.testId) details += '<span>testId: ' + a.testId + '</span>';
+                if (a.testStatus) details += '<span>testStatus: ' + a.testStatus + '</span>';
+                if (a.rowCount != null) details += '<span>rowCount: ' + a.rowCount + '</span>';
+                if (a.diffCount != null) details += '<span>diffCount: ' + a.diffCount + '</span>';
+                if (a.jobId) details += '<span>jobId: ' + a.jobId + '</span>';
+                if (a.message && isFailed) details += '<span style="color:var(--fail)">' + a.message + '</span>';
+                details += '</div>';
+
+                var cardExtra = '';
+                var dataAttrs = ' data-api-name="' + (a.apiName || '').replace(/"/g, '&quot;') + '"';
+                if (a.jobId) {
+                    dataAttrs += ' data-job-id="' + a.jobId + '" data-external-link="1"';
+                    details += '<div class="ext-link-hint">Click to open Alert Validation Detail</div>';
+                } else if (isFailed) {
+                    cardExtra = ' no-job';
+                    dataAttrs += ' data-message="' + (a.message || 'No job ID - validation did not complete').replace(/"/g, '&quot;') + '" data-show-error="1"';
+                } else {
+                    cardExtra = ' no-job';
+                }
+                return '<div class="api-card ' + cardClass + cardExtra + '"' + dataAttrs + '><div class="api-name">' + (a.apiName || '') + '</div>' + details + '</div>';
+            }).join('');
+        }
+
+        document.body.addEventListener('click', function(e) {
+            var card = e.target.closest('.api-card');
+            if (!card) return;
+            if (card.dataset.externalLink) {
+                window.open(VALIDATION_DETAIL_BASE + card.dataset.jobId, '_blank');
+            } else if (card.dataset.showError) {
+                showModal((card.dataset.apiName || 'API') + ' - Error', card.dataset.message || 'No message');
+            }
+        });
+
+        var pollTimer = setInterval(fetchReport, pollInterval);
+        function stopPollingIfCompleted() {
+            if (lastData && (lastData.suiteStatus || '').toLowerCase() === 'completed' && pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
+        }
+        fetchReport();
+    </script>
+</body>
+</html>

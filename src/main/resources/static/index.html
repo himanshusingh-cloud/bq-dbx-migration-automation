@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analytics API Validation</title>
+<script src="/api/validation/api-groups.js"></script>
+<style>
+body{font-family:system-ui,sans-serif;background:#0a0e14;color:#e6edf3;margin:0;padding:2rem;}
+.c{max-width:960px;margin:0 auto;}
+h1{color:#00d4aa;font-size:1.5rem;}
+.sub{color:#8b949e;font-size:0.9rem;margin-bottom:1.5rem;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+.fld{display:flex;flex-direction:column;gap:0.3rem;}
+.fld label{font-size:0.75rem;color:#8b949e;text-transform:uppercase;}
+input,select{background:#1a2332;border:1px solid #2d3748;border-radius:6px;padding:0.5rem 0.75rem;color:#e6edf3;font-size:0.9rem;}
+.api-box{background:#131920;border:1px solid #2d3748;border-radius:8px;padding:1rem;margin:1rem 0;}
+.api-title{font-size:0.8rem;color:#8b949e;margin-bottom:0.75rem;}
+.api-actions{margin-bottom:0.5rem;}
+.btn-sm{background:#1a2332;border:1px solid #2d3748;color:#8b949e;padding:0.3rem 0.6rem;border-radius:4px;cursor:pointer;font-size:0.8rem;margin-right:0.5rem;}
+.btn-sm:hover{border-color:#00d4aa;color:#00d4aa;}
+.api-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.4rem;}
+.api-option{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.6rem;background:#1a2332;border:1px solid #2d3748;border-radius:4px;cursor:pointer;font-size:0.85rem;}
+.api-option:hover{border-color:#00d4aa;}
+.api-option input{width:16px;height:16px;accent-color:#00d4aa;}
+.api-group{display:none;}
+.api-group.active{display:block;}
+.btn-run{background:#00d4aa;color:#0a0e14;border:none;padding:0.75rem 1.5rem;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:1rem;}
+.btn-run:hover{background:#00f5c4;}
+.btn-run:disabled{opacity:0.6;cursor:not-allowed;}
+.res{display:none;margin-top:1.5rem;background:#131920;border:1px solid #2d3748;border-radius:8px;padding:1rem;}
+.res.visible{display:block;}
+.res pre{background:#0d1117;padding:1rem;border-radius:4px;font-size:0.8rem;overflow:auto;white-space:pre-wrap;}
+.err{color:#ff6b6b;}
+</style>
+</head>
+<body>
+<div class="c">
+<h1>Analytics API Validation</h1>
+<p class="sub">POST /api/run-validation-tests — same as curl. JSON Comparison: POST /api/json-comparison/run (returns suiteId + reportUrl)</p>
+<form id="f" novalidate>
+<div class="grid">
+<div class="fld"><label>CLIENT</label><input type="text" id="client" placeholder="e.g. mondelez-fr, usdemoaccount"></div>
+<div class="fld"><label>ENVIRONMENT</label><select id="env"><option value="test">test</option><option value="staging">staging</option><option value="prod">prod</option></select></div>
+<div class="fld"><label>APIGROUP</label><select id="apiGroup"><option value="analytics">analytics</option><option value="multiLocation2.0">multiLocation2.0</option><option value="search">search</option></select></div>
+<div class="fld"><label>STARTDATE</label><input type="text" id="startDate" value="2026-02-01"></div>
+<div class="fld"><label>ENDDATE</label><input type="text" id="endDate" value="2026-02-09"></div>
+</div>
+<div class="api-box">
+<div class="api-title">APIS (LEAVE ALL UNCHECKED TO RUN ALL)</div>
+<div class="api-actions"><button type="button" class="btn-sm" id="selAll">Select All</button><button type="button" class="btn-sm" id="selNone">Select None</button></div>
+<div id="apiContainer"></div>
+</div>
+<button type="submit" class="btn-run" id="runBtn">Run Validation</button>
+</form>
+<div class="res" id="res"><h3>Response</h3><pre id="resJson"></pre></div>
+</div>
+<script>
+(function(){
+var groups=window.__API_GROUPS__||{};
+if(Object.keys(groups).length===0){document.getElementById('apiContainer').innerHTML='<span class="err">Failed to load API list. Refresh the page.</span>';}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function buildApiGroups(){
+var html='';
+for(var k in groups){if(!groups.hasOwnProperty(k))continue;
+html+='<div class="api-group api-grid" data-group="'+esc(k)+'">';
+var apis=groups[k]||[];
+for(var i=0;i<apis.length;i++){var a=apis[i];
+html+='<label class="api-option"><input type="checkbox" name="apis" value="'+esc(a)+'"> <span>'+esc(a)+'</span></label>';
+}
+html+='</div>';
+}
+return html;
+}
+var apiContainer=document.getElementById('apiContainer');
+apiContainer.innerHTML=buildApiGroups();
+function showGroup(g){document.querySelectorAll('.api-group').forEach(function(d){d.classList.toggle('active',d.dataset.group===g);});}
+showGroup(document.getElementById('apiGroup').value);
+document.getElementById('apiGroup').onchange=function(){showGroup(this.value);};
+document.getElementById('selAll').onclick=function(){var g=document.getElementById('apiGroup').value;document.querySelectorAll('[data-group="'+g+'"] input').forEach(function(c){c.checked=true;});};
+document.getElementById('selNone').onclick=function(){var g=document.getElementById('apiGroup').value;document.querySelectorAll('[data-group="'+g+'"] input').forEach(function(c){c.checked=false;});};
+function qs(){var p={};location.search.slice(1).split('&').forEach(function(x){var k=x.split('=');if(k[1])p[k[0]]=decodeURIComponent(k[1]);});return p;}
+var q=qs();
+if(q.client)document.getElementById('client').value=q.client;
+if(q.environment)document.getElementById('env').value=q.environment||'test';
+if(q.apiGroup){document.getElementById('apiGroup').value=q.apiGroup;showGroup(q.apiGroup);}
+if(q.startDate)document.getElementById('startDate').value=q.startDate;
+if(q.endDate)document.getElementById('endDate').value=q.endDate;
+document.getElementById('f').onsubmit=function(e){
+e.preventDefault();
+var client=document.getElementById('client').value.trim();
+if(!client){document.getElementById('resJson').textContent='Error: client is required';document.getElementById('res').classList.add('visible');return;}
+var btn=document.getElementById('runBtn');
+btn.disabled=true;
+btn.textContent='Running...';
+document.getElementById('res').classList.remove('visible');
+var g=document.getElementById('apiGroup').value;
+var apis=[];
+document.querySelectorAll('[data-group="'+g+'"] input:checked').forEach(function(c){apis.push(c.value);});
+var pl={client:client,environment:document.getElementById('env').value,apiGroup:g,startDate:document.getElementById('startDate').value.trim(),endDate:document.getElementById('endDate').value.trim()};
+if(apis.length>0)pl.apis=apis;
+var xhr=new XMLHttpRequest();
+xhr.open('POST','/api/run-validation-tests');
+xhr.setRequestHeader('Content-Type','application/json');
+xhr.onload=function(){
+btn.disabled=false;
+btn.textContent='Run Validation';
+var d;
+try{d=JSON.parse(xhr.responseText);}catch(err){document.getElementById('resJson').textContent='Error: '+xhr.responseText;document.getElementById('res').classList.add('visible');return;}
+document.getElementById('resJson').textContent=JSON.stringify(d,null,2);
+document.getElementById('res').classList.add('visible');
+if(d&&d.suiteId&&xhr.status>=200&&xhr.status<300){window.location.href='/validation-report/'+d.suiteId;}
+};
+xhr.onerror=function(){btn.disabled=false;btn.textContent='Run Validation';document.getElementById('resJson').textContent='Network error. Is server running?';document.getElementById('res').classList.add('visible');};
+xhr.send(JSON.stringify(pl));
+};
+})();
+</script>
+</body>
+</html>

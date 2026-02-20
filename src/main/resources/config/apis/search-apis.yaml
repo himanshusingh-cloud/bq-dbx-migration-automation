@@ -1,0 +1,42 @@
+apiGroup: search
+apis:
+  - apiId: shareOfSearchByBrandV2
+    endpoint: /analytics/query/shareOfSearchByBrandV2
+    method: POST
+    template: shareOfSearchByBrandV2
+    dataProvider: search
+  - apiId: shareOfSearch
+    endpoint: /analytics/query/shareOfSearch
+    method: POST
+    template: shareOfSearch
+    dataProvider: search
+  - apiId: weightedShareOfSearch
+    endpoint: /analytics/query/weightedShareOfSearch
+    method: POST
+    template: weightedShareOfSearch
+    dataProvider: search
+  - apiId: productSearchHistory
+    endpoint: /analytics/query/productSearchHistory
+    method: POST
+    template: productSearchHistory
+    dataProvider: searchProductHistory
+  - apiId: searchRankTrends
+    endpoint: /analytics/query/searchRankTrends
+    method: POST
+    template: searchRankTrends
+    dataProvider: search
+  - apiId: topFiveSearchTrends
+    endpoint: /analytics/query/topFiveSearchTrends
+    method: POST
+    template: topFiveSearchTrends
+    dataProvider: search
+  - apiId: shareOfSearchByRetailerV2
+    endpoint: /analytics/query/shareOfSearchByRetailerV2
+    method: POST
+    template: shareOfSearchByRetailerV2
+    dataProvider: search
+  - apiId: shareOfSearchByJourneyV2
+    endpoint: /analytics/query/shareOfSearchByJourneyV2
+    method: POST
+    template: shareOfSearchByJourneyV2
+    dataProvider: search

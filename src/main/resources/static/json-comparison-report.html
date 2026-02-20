@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>JSON Comparison Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f1419;
+            --bg-card: #1a2332;
+            --bg-card-hover: #243044;
+            --accent: #00d4aa;
+            --prod: #ff6b6b;
+            --test: #4dabf7;
+            --pass: #51cf66;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --border: #30363d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { font-size: 1.75rem; margin-bottom: 0.5rem; color: var(--accent); }
+        .subtitle { font-size: 0.9rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 1rem; }
+        .meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+        .meta-item {
+            background: var(--bg-card);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .meta-item strong { color: var(--accent); margin-right: 0.5rem; }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+        .status-badge.completed { background: rgba(81,207,102,0.2); color: var(--pass); }
+        .status-badge.in-progress { background: rgba(255,212,59,0.2); color: #ffd43b; }
+        .api-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .api-section.clickable { cursor: pointer; transition: background 0.2s; }
+        .api-section.clickable:hover { background: var(--bg-card-hover); }
+        .api-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .api-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 1rem; color: var(--accent); }
+        .api-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .badge { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
+        .badge.match { background: rgba(81,207,102,0.2); color: var(--pass); }
+        .badge.mismatch { background: rgba(255,107,107,0.2); color: var(--prod); }
+        .api-links { font-size: 0.8rem; margin-top: 0.5rem; }
+        .api-links a { color: var(--accent); margin-right: 1rem; }
+        .mismatch-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+        .mismatch-table th, .mismatch-table td {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .mismatch-table th { color: var(--text-muted); font-weight: 600; }
+        .mismatch-table .path { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
+        .mismatch-table .prod-val { background: rgba(255,107,107,0.15); color: var(--prod); padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all; }
+        .mismatch-table .test-val { background: rgba(77,171,247,0.15); color: var(--test); padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all; }
+        .empty { color: var(--text-muted); font-style: italic; padding: 0.5rem 0; }
+        .refresh-info { font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; }
+        .btn-back { color: var(--accent); text-decoration: none; font-size: 0.9rem; margin-bottom: 1rem; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="btn-back">&larr; Back</a>
+        <h1>JSON Comparison Report</h1>
+        <p class="subtitle">Suite ID: <span id="suiteIdDisplay">-</span></p>
+        <div id="content">
+            <div class="refresh-info">Loading...</div>
+        </div>
+    </div>
+    <script>
+        var suiteId = window.location.pathname.split('/').filter(Boolean).pop() || '';
+        document.getElementById('suiteIdDisplay').textContent = suiteId || '(none)';
+        var pollInterval = 3000;
+
+        async function fetchReport() {
+            if (!suiteId) {
+                document.getElementById('content').innerHTML = '<div class="empty">No suite ID in URL. Use /json-comparison-report/{suiteId}</div>';
+                return;
+            }
+            try {
+                var r = await fetch('/api/json-comparison/' + suiteId);
+                if (!r.ok) throw new Error(r.statusText);
+                var data = await r.json();
+                render(data);
+                if ((data.suiteStatus || '').toLowerCase() === 'completed') {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
+            } catch (e) {
+                document.getElementById('content').innerHTML = '<div class="empty">Failed to load: ' + e.message + '</div>';
+            }
+        }
+
+        function render(data) {
+            var status = (data.suiteStatus || '').toLowerCase();
+            var statusClass = status.indexOf('progress') >= 0 ? 'in-progress' : 'completed';
+            var html = '<div class="meta">';
+            html += '<div class="meta-item"><strong>Client</strong>' + (data.client || '-') + '</div>';
+            html += '<div class="meta-item"><strong>Dates</strong>' + (data.startDate || '') + ' to ' + (data.endDate || '') + '</div>';
+            html += '<div class="meta-item"><strong>API Group</strong>' + (data.apiGroup || '-') + '</div>';
+            html += '<div class="meta-item"><span class="status-badge ' + statusClass + '">' + (data.suiteStatus || 'Unknown') + '</span></div>';
+            html += '</div>';
+
+            var results = data.results || [];
+            for (var i = 0; i < results.length; i++) {
+                var r = results[i];
+                var apiId = (r.apiId || '').replace(/[^a-zA-Z0-9_-]/g, '-');
+                var clickable = r.status === 'completed' && r.mismatchReportURL;
+                var sectionClass = 'api-section' + (clickable ? ' clickable' : '');
+                html += '<div class="' + sectionClass + '" id="api-' + apiId + '"' + (clickable ? ' data-mismatch-url="' + escapeHtml(r.mismatchReportURL) + '"' : '') + '>';
+                html += '<div class="api-header">';
+                html += '<div><span class="api-name">' + (r.apiId || '') + '</span>';
+                html += '<div class="api-badges">';
+                if (r.status === 'in_progress') {
+                    html += '<span class="badge" style="background:rgba(255,212,59,0.2);color:#ffd43b">In Progress</span>';
+                } else {
+                    html += '<span class="badge ' + (r.match ? 'match' : 'mismatch') + '">' + (r.match ? 'Match' : 'Mismatch') + '</span>';
+                    html += '<span class="badge">test: ' + (r.testRowCount != null ? r.testRowCount : '-') + ' rows</span>';
+                    html += '<span class="badge">prod: ' + (r.prodRowCount != null ? r.prodRowCount : '-') + ' rows</span>';
+                    html += '<span class="badge">rowCount: ' + (r.rowCountStatus || '-') + '</span>';
+                    if (r.testStatus) html += '<span class="badge ' + (r.testStatus === 'pass' ? 'match' : 'mismatch') + '">' + r.testStatus + '</span>';
+                    if (r.diffCount != null && r.diffCount > 0) html += '<span class="badge mismatch">diffCount: ' + r.diffCount + '</span>';
+                    if (r.jobId) html += '<span class="badge">jobId: ' + r.jobId + '</span>';
+                }
+                html += '</div></div></div>';
+                if (r.status === 'completed') {
+                    if (r.mismatchReportURL) {
+                        html += '<div class="api-links"><a href="' + escapeHtml(r.mismatchReportURL) + '">View full diff report</a></div>';
+                    }
+                }
+                if (r.status === 'in_progress') {
+                    html += '<div class="empty">Running comparison...</div>';
+                }
+                html += '</div>';
+            }
+
+            if (results.length === 0 && status === 'in_progress') {
+                html += '<div class="empty">Running comparison... results will appear shortly.</div>';
+            } else if (results.length === 0) {
+                html += '<div class="empty">No results yet.</div>';
+            }
+
+            html += '<div class="refresh-info">' + (status === 'completed' ? 'Completed' : 'Auto-refreshes every ' + (pollInterval/1000) + 's') + '</div>';
+            document.getElementById('content').innerHTML = html;
+            scrollToHash();
+        }
+
+        function escapeHtml(s) {
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function scrollToHash() {
+            var hash = window.location.hash;
+            if (hash && hash.startsWith('#api-')) {
+                var el = document.querySelector(hash);
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        document.getElementById('content').addEventListener('click', function(e) {
+            if (e.target.closest('a')) return;
+            var section = e.target.closest('.api-section.clickable');
+            if (section) {
+                var url = section.getAttribute('data-mismatch-url');
+                if (url) window.location.href = url;
+            }
+        });
+
+        var pollTimer = setInterval(fetchReport, pollInterval);
+        fetchReport();
+        window.addEventListener('hashchange', scrollToHash);
+    </script>
+</body>
+</html>

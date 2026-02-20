@@ -1,0 +1,82 @@
+apiGroup: multiLocation2.0
+apis:
+  - apiId: multiStoreAvailability
+    endpoint: /analytics/query/multiStoreAvailability
+    method: POST
+    template: multiStoreAvailability
+    dataProvider: multiLocation
+  - apiId: multiStoreAvailabilityRollUp
+    endpoint: /analytics/query/multiStoreAvailabilityRollUp
+    method: POST
+    template: multiStoreAvailabilityRollUp
+    dataProvider: multiLocation
+  - apiId: multiStoreAvailabilityRetailerCounts
+    endpoint: /analytics/query/multiStoreAvailabilityRetailerCounts
+    method: POST
+    template: multiStoreAvailabilityRetailerCounts
+    dataProvider: multiLocation
+  - apiId: multiStoreAvailabilityStoreCounts
+    endpoint: /analytics/query/multiStoreAvailabilityStoreCounts
+    method: POST
+    template: multiStoreAvailabilityStoreCounts
+    dataProvider: multiLocation
+  - apiId: multiStoreAvailabilitySkuRollUp
+    endpoint: /analytics/query/multiStoreAvailabilitySkuRollUp
+    method: POST
+    template: multiStoreAvailabilitySkuRollUp
+    dataProvider: multiLocation
+  - apiId: assortmentInsights
+    endpoint: /analytics/query/assortmentInsights
+    method: POST
+    template: assortmentInsights
+    dataProvider: multiLocation
+  - apiId: assortmentInsightsSOPDetail
+    endpoint: /analytics/query/assortmentInsightsSOPDetail
+    method: POST
+    template: assortmentInsightsSOPDetail
+    dataProvider: multiLocation
+  - apiId: modalitiesSummary
+    endpoint: /analytics/query/modalitiesSummary
+    method: POST
+    template: modalitiesSummary
+    dataProvider: multiLocation
+  - apiId: modalitiesInsights
+    endpoint: /analytics/query/modalitiesInsights
+    method: POST
+    template: modalitiesInsights
+    dataProvider: multiLocation
+  - apiId: availabilityInsightsSpotlights
+    endpoint: /analytics/query/availabilityInsightsSpotlights
+    method: POST
+    template: availabilityInsightsSpotlights
+    dataProvider: multiLocation
+  - apiId: availabilityInsightsSpotlights1
+    endpoint: /analytics/query/availabilityInsightsSpotlights1
+    method: POST
+    template: availabilityInsightsSpotlights1
+    dataProvider: multiLocation
+  - apiId: prolongedOOSSpotlights
+    endpoint: /analytics/query/prolongedOOSSpotlights
+    method: POST
+    template: prolongedOOSSpotlights
+    dataProvider: multiLocation
+  - apiId: availabilityInsights
+    endpoint: /analytics/query/availabilityInsights
+    method: POST
+    template: availabilityInsights
+    dataProvider: multiLocation
+  - apiId: availabilityInsightsDetail
+    endpoint: /analytics/query/availabilityInsightsDetail
+    method: POST
+    template: availabilityInsightsDetail
+    dataProvider: multiLocation
+  - apiId: availabilityInsightsDetailCategory
+    endpoint: /analytics/query/availabilityInsightsDetailCategory
+    method: POST
+    template: availabilityInsightsDetailCategory
+    dataProvider: multiLocation
+  - apiId: prolongedOOSDetail
+    endpoint: /analytics/query/prolongedOOSDetail
+    method: POST
+    template: prolongedOOSDetail
+    dataProvider: multiLocation

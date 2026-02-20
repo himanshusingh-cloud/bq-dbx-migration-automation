@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="ProductContentValidationSuite" verbose="2">
+    <test name="ProductContentAPITest">
+        <parameter name="apis" value="productBasics"/>
+        <parameter name="startDate" value="2026-01-15"/>
+        <parameter name="endDate" value="2026-01-15"/>
+        <parameter name="environment" value="test"/>
+        <classes>
+            <class name="com.analytics.orchestrator.ProductContentAPITest"/>
+        </classes>
+    </test>
+</suite>
