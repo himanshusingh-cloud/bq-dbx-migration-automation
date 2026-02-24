@@ -185,14 +185,16 @@ public class ComparisonController {
         if (r.getTestRowCount() == null && r.getProdRowCount() == null && isEmptyResponse(r.getTestResponseJson()) && isEmptyResponse(r.getProdResponseJson())) {
             m.put("emptyMessage", "Test prod api have empty response");
         }
-        m.put("testCurl", buildCurl(r.getTestUrl(), r.getJobId(), r.getRequestPayload(), headers));
-        m.put("prodCurl", buildCurl(r.getProdUrl(), r.getJobId(), r.getRequestPayload(), headers));
+        m.put("testDBXcurl", buildCurlWithBqDbxConfig(r.getTestUrl(), r.getJobId(), r.getRequestPayload(), headers, "DBX_ONLY"));
+        m.put("testBQcurl", buildCurlWithBqDbxConfig(r.getProdUrl(), r.getJobId(), r.getRequestPayload(), headers, "BQ_ONLY"));
         String queryGenieUrl = r.getJobId() != null && !r.getJobId().isBlank()
                 ? queryGenieBaseUrl.replaceAll("/$", "") + "/alert-validation-detail/" + r.getJobId()
                 : null;
         m.put("queryGenieUrl", queryGenieUrl);
         m.put("testResponse", formatResponseForDisplay(r.getTestResponseJson()));
         m.put("prodResponse", formatResponseForDisplay(r.getProdResponseJson()));
+        m.put("dbxResponse", formatResponseForDisplay(r.getTestResponseJson()));
+        m.put("bqResponse", formatResponseForDisplay(r.getProdResponseJson()));
         if (r.getMismatchesJson() != null && !r.getMismatchesJson().isEmpty()) {
             try {
                 m.put("mismatches", objectMapper.readValue(r.getMismatchesJson(), new TypeReference<List<Map<String, String>>>() {}));
@@ -223,6 +225,10 @@ public class ComparisonController {
     }
 
     private String buildCurl(String url, String jobId, String payload, Map<String, String> headers) {
+        return buildCurlWithBqDbxConfig(url, jobId, payload, headers, null);
+    }
+
+    private String buildCurlWithBqDbxConfig(String url, String jobId, String payload, Map<String, String> headers, String bqDbxConfig) {
         if (url == null || url.isBlank()) return null;
         StringBuilder sb = new StringBuilder();
         sb.append("curl -X POST '").append(url).append("'");
@@ -235,6 +241,9 @@ public class ComparisonController {
         }
         if (jobId != null && !jobId.isBlank()) {
             sb.append(" -H 'X-qg-request-id: ").append(jobId).append("'");
+        }
+        if (bqDbxConfig != null && !bqDbxConfig.isBlank()) {
+            sb.append(" -H 'x-bqdbx-config: ").append(bqDbxConfig).append("'");
         }
         String body = payload != null ? payload : "{}";
         sb.append(" -d '").append(body.replace("'", "'\\''")).append("'");

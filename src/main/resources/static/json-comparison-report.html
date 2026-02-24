@@ -142,8 +142,8 @@
                     html += '<span class="badge" style="background:rgba(255,212,59,0.2);color:#ffd43b">In Progress</span>';
                 } else {
                     html += '<span class="badge ' + (r.match ? 'match' : 'mismatch') + '">' + (r.match ? 'Match' : 'Mismatch') + '</span>';
-                    html += '<span class="badge">test: ' + (r.testRowCount != null ? r.testRowCount : '-') + ' rows</span>';
-                    html += '<span class="badge">prod: ' + (r.prodRowCount != null ? r.prodRowCount : '-') + ' rows</span>';
+                    html += '<span class="badge">DBX: ' + (r.testRowCount != null ? r.testRowCount : '-') + ' rows</span>';
+                    html += '<span class="badge">BQ: ' + (r.prodRowCount != null ? r.prodRowCount : '-') + ' rows</span>';
                     html += '<span class="badge">rowCount: ' + (r.rowCountStatus || '-') + '</span>';
                     if (r.testStatus) html += '<span class="badge ' + (r.testStatus === 'pass' ? 'match' : 'mismatch') + '">' + r.testStatus + '</span>';
                     if (r.diffCount != null && r.diffCount > 0) html += '<span class="badge mismatch">diffCount: ' + r.diffCount + '</span>';

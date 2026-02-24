@@ -216,6 +216,26 @@ public class TaxonomyFieldMappingRegistry {
                 "retailers", "retailers",
                 "journeys", "journeys"
         ));
+        // Pricing APIs - priceAlerts does NOT accept sub_brands (schema rejects it)
+        mappings.put("priceAlerts", Map.of(
+                "retailers", "retailers",
+                "categories", "categories",
+                "sub_categories", "sub_categories",
+                "manufacturers", "manufacturers",
+                "brands", "brands"
+        ));
+        Map<String, String> pricingMappingWithSubBrands = Map.of(
+                "retailers", "retailers",
+                "categories", "categories",
+                "sub_categories", "sub_categories",
+                "manufacturers", "manufacturers",
+                "brands", "brands",
+                "sub_brands", "sub_brands"
+        );
+        mappings.put("pricingArchitecture", pricingMappingWithSubBrands);
+        mappings.put("pricingSummaryOverview", pricingMappingWithSubBrands);
+        mappings.put("pricingSummaryDetail", pricingMappingWithSubBrands);
+        mappings.put("priceTrends", pricingMappingWithSubBrands);
     }
 
     public Map<String, String> getFieldMappings(String templateName) {

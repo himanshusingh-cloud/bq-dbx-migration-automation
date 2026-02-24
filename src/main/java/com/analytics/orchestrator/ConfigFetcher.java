@@ -30,13 +30,14 @@ public class ConfigFetcher {
      */
     public String fetchConfig(String baseUrl, String clientId, String userEmail, String authToken) {
         String url = baseUrl + USER_CONFIG_ENDPOINT;
-        log.info("Fetching config from {} for client {} | x-user-email={}", url, clientId, configUserEmail);
+        String effectiveEmail = userEmail != null && !userEmail.isBlank() ? userEmail : configUserEmail;
+        log.info("Fetching config from {} for client {} | x-user-email={}", url, clientId, effectiveEmail);
 
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
         headers.put("Accept", "application/json");
         headers.put("x-client-id", clientId);
-        headers.put("x-user-email", userEmail != null && !userEmail.isBlank() ? userEmail : configUserEmail);
+        headers.put("x-user-email", effectiveEmail);
         headers.put("x-auth-bypass-token", authToken != null ? authToken : DEFAULT_AUTH);
 
         Response response = RestAssured.given()

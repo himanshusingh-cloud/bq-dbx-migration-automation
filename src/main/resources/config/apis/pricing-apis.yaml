@@ -1,0 +1,27 @@
+apiGroup: pricing
+apis:
+  - apiId: priceAlerts
+    endpoint: /analytics/query/priceAlerts
+    method: POST
+    template: priceAlerts
+    dataProvider: dateRanges
+  - apiId: pricingArchitecture
+    endpoint: /analytics/query/pricingArchitecture
+    method: POST
+    template: pricingArchitecture
+    dataProvider: dateRanges
+  - apiId: pricingSummaryOverview
+    endpoint: /analytics/query/pricingSummaryOverview
+    method: POST
+    template: pricingSummaryOverview
+    dataProvider: dateRanges
+  - apiId: pricingSummaryDetail
+    endpoint: /analytics/query/pricingSummaryDetail
+    method: POST
+    template: pricingSummaryDetail
+    dataProvider: dateRanges
+  - apiId: priceTrends
+    endpoint: /analytics/query/priceTrends
+    method: POST
+    template: priceTrends
+    dataProvider: dateRanges

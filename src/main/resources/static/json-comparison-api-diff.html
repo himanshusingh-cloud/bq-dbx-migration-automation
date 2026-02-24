@@ -61,6 +61,8 @@
         }
         .panel-header.test { background: rgba(77,171,247,0.15); color: var(--test); }
         .panel-header.prod { background: rgba(255,107,107,0.15); color: var(--prod); }
+        .panel-header.dbx { background: rgba(77,171,247,0.15); color: var(--test); }
+        .panel-header.bq { background: rgba(255,107,107,0.15); color: var(--prod); }
         .panel-body {
             padding: 1rem;
             max-height: 70vh;
@@ -103,6 +105,10 @@
         .loading { color: var(--text-muted); }
         .curl-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--accent); padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
         .curl-btn:hover { background: var(--bg-card-hover); }
+        .curl-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .curl-row pre { flex: 1; margin: 0; padding: 0.5rem 0.75rem; background: var(--bg-dark); border-radius: 6px; font-size: 0.75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+        .copy-btn { background: var(--accent); color: var(--bg-dark); border: none; padding: 0.35rem 0.6rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem; }
+        .copy-btn:hover { opacity: 0.9; }
         .curl-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
         .curl-modal.show { display: flex; }
         .curl-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; max-width: 90%; max-height: 80vh; overflow: auto; }
@@ -152,26 +158,27 @@
                 html += '<div class="no-mismatch-msg" style="background:rgba(255,107,107,0.2);color:var(--prod);margin-bottom:1rem">' +
                     (mismatches[0] ? escapeHtml(String(mismatches[0].test || mismatches[0].prod || '')) : 'API returned 503') + '</div>';
             }
+            var dbxRows = data.testRowCount != null ? String(data.testRowCount) : null;
+            var bqRows = data.prodRowCount != null ? String(data.prodRowCount) : null;
+            var rowsMsg = (dbxRows != null && bqRows != null) ? ('DBX rows: ' + dbxRows + ', BQ rows: ' + bqRows) : 'DBX rows and BQ rows not found or response is empty';
             html += '<div class="meta">';
             html += '<div class="meta-item"><span class="status-badge ' + (match ? 'match' : 'mismatch') + '">' + (match ? 'Match' : 'Mismatch') + '</span></div>';
-            html += '<div class="meta-item"><strong>Test rows:</strong>' + (data.testRowCount != null ? data.testRowCount : '-') + '</div>';
-            html += '<div class="meta-item"><strong>Prod rows:</strong>' + (data.prodRowCount != null ? data.prodRowCount : '-') + '</div>';
-            if (data.emptyMessage) html += '<div class="meta-item" style="color:var(--text-muted)">' + escapeHtml(data.emptyMessage) + '</div>';
-            if (data.testCurl) html += '<div class="meta-item"><button class="curl-btn" data-curl-id="test">Test CURL</button></div>';
-            if (data.prodCurl) html += '<div class="meta-item"><button class="curl-btn" data-curl-id="prod">Prod CURL</button></div>';
+            html += '<div class="meta-item"><strong>Rows:</strong>' + escapeHtml(rowsMsg) + '</div>';
+            if (data.testDBXcurl) html += '<div class="meta-item"><button class="curl-btn" data-curl="dbx" title="Show Test DBX CURL">Test DBX CURL</button></div>';
+            if (data.testBQcurl) html += '<div class="meta-item"><button class="curl-btn" data-curl="bq" title="Show Test BQ CURL">Test BQ CURL</button></div>';
             if (data.queryGenieUrl) html += '<div class="meta-item"><a href="' + escapeHtml(data.queryGenieUrl) + '" target="_blank" class="curl-btn" style="text-decoration:none;display:inline-block">Query Genie</a></div>';
             html += '</div>';
 
             if (match) {
                 html += '<div class="panels">';
-                html += '<div class="panel"><div class="panel-header test">Test Response</div><div class="panel-body">' + escapeHtml(formatJson(data.testResponse)) + '</div></div>';
-                html += '<div class="panel"><div class="panel-header prod">Prod Response</div><div class="panel-body">' + escapeHtml(formatJson(data.prodResponse)) + '</div></div>';
+                html += '<div class="panel"><div class="panel-header dbx">DBX Response</div><div class="panel-body">' + escapeHtml(formatJson(data.testResponse || data.dbxResponse)) + '</div></div>';
+                html += '<div class="panel"><div class="panel-header bq">BQ Response</div><div class="panel-body">' + escapeHtml(formatJson(data.prodResponse || data.bqResponse)) + '</div></div>';
                 html += '</div>';
                 html += '<div class="no-mismatch-msg">No any mismatch for this API</div>';
             } else {
                 var mismatches = data.mismatches || [];
                 if (mismatches.length > 0) {
-                    html += '<table class="mismatch-table"><thead><tr><th>Path</th><th>Prod</th><th>Test</th></tr></thead><tbody>';
+                    html += '<table class="mismatch-table"><thead><tr><th>Path</th><th>BQ</th><th>DBX</th></tr></thead><tbody>';
                     for (var j = 0; j < mismatches.length; j++) {
                         var m = mismatches[j];
                         html += '<tr><td class="path">' + escapeHtml(m.path || '') + '</td>';
@@ -181,32 +188,35 @@
                     html += '</tbody></table>';
                 }
                 html += '<div class="panels">';
-                html += '<div class="panel"><div class="panel-header test">Test Response</div><div class="panel-body">' + escapeHtml(formatJson(data.testResponse)) + '</div></div>';
-                html += '<div class="panel"><div class="panel-header prod">Prod Response</div><div class="panel-body">' + escapeHtml(formatJson(data.prodResponse)) + '</div></div>';
+                html += '<div class="panel"><div class="panel-header dbx">DBX Response</div><div class="panel-body">' + escapeHtml(formatJson(data.testResponse || data.dbxResponse)) + '</div></div>';
+                html += '<div class="panel"><div class="panel-header bq">BQ Response</div><div class="panel-body">' + escapeHtml(formatJson(data.prodResponse || data.bqResponse)) + '</div></div>';
                 html += '</div>';
             }
 
             document.getElementById('content').innerHTML = html;
-            window._lastCurlData = data;
-            document.querySelectorAll('.curl-btn').forEach(function(btn) {
+            window._curlData = { dbx: data.testDBXcurl, bq: data.testBQcurl };
+            document.querySelectorAll('.curl-btn[data-curl]').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    var id = this.getAttribute('data-curl-id');
-                    var curl = window._lastCurlData && window._lastCurlData[id + 'Curl'];
-                    if (curl) showCurlModal(curl);
+                    var which = this.getAttribute('data-curl');
+                    var curl = window._curlData && window._curlData[which];
+                    if (curl) showCurlModal(curl, which === 'dbx' ? 'Test DBX CURL' : 'Test BQ CURL');
                 });
             });
         }
 
-        function showCurlModal(curl) {
+        function showCurlModal(curl, title) {
+            title = title || 'CURL Command';
             var modal = document.getElementById('curlModal');
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'curlModal';
                 modal.className = 'curl-modal';
-                modal.innerHTML = '<div class="curl-content"><span class="curl-close" onclick="closeCurlModal()">&times;</span><h3 style="margin-bottom: 0.5rem">CURL Command</h3><pre id="curlContent"></pre><button class="curl-btn" style="margin-top: 1rem" onclick="copyCurl()">Copy to clipboard</button></div>';
+                modal.innerHTML = '<div class="curl-content"><span class="curl-close" onclick="closeCurlModal()">&times;</span><h3 style="margin-bottom: 0.5rem" id="curlModalTitle">CURL Command</h3><pre id="curlContent"></pre><button class="copy-btn" style="margin-top: 1rem" onclick="copyCurl()">&#128203; Copy to clipboard</button></div>';
                 modal.onclick = function(e) { if (e.target === modal) closeCurlModal(); };
                 document.body.appendChild(modal);
             }
+            var titleEl = document.getElementById('curlModalTitle');
+            if (titleEl) titleEl.textContent = title;
             document.getElementById('curlContent').textContent = curl;
             modal.classList.add('show');
         }

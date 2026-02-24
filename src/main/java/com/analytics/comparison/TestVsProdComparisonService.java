@@ -129,15 +129,16 @@ public class TestVsProdComparisonService {
 
     /**
      * Run comparison for specified APIs or all in group.
+     * Hits TEST API only, twice: once with x-bqdbx-config: DBX_ONLY, once with x-bqdbx-config: BQ_ONLY.
+     * Compares DBX vs BQ responses (no prod API).
      */
     public List<ApiComparisonResult> runComparison(String client, String startDate, String endDate,
                                                    String apiGroup, List<String> apis) {
         String testBaseUrl = configResolver.getBaseUrl("test");
-        String prodBaseUrl = configResolver.getBaseUrl("prod");
         Map<String, String> headers = configResolver.getConfigHeaders(client, defaultUserEmail, defaultAuthToken);
 
         List<ApiDefinition.ApiSpec> apiSpecs = configResolver.resolveApis(apiGroup, apis);
-        Map<String, List<String>> taxonomy = fetchTaxonomy(client, prodBaseUrl);
+        Map<String, List<String>> taxonomy = fetchTaxonomy(client, testBaseUrl);
 
         Map<String, Object> baseParams = new HashMap<>();
         baseParams.put("client_id", client);
@@ -147,15 +148,19 @@ public class TestVsProdComparisonService {
 
         List<ApiComparisonResult> results = new ArrayList<>();
         for (ApiDefinition.ApiSpec spec : apiSpecs) {
-            ApiComparisonResult r = compareOneApi(spec, baseParams, taxonomy, headers, testBaseUrl, prodBaseUrl);
+            ApiComparisonResult r = compareOneApi(spec, baseParams, taxonomy, headers, testBaseUrl);
             results.add(r);
         }
         return results;
     }
 
+    private static final String HEADER_BQDBX_CONFIG = "x-bqdbx-config";
+    private static final String DBX_ONLY = "DBX_ONLY";
+    private static final String BQ_ONLY = "BQ_ONLY";
+
     private ApiComparisonResult compareOneApi(ApiDefinition.ApiSpec spec, Map<String, Object> baseParams,
                                               Map<String, List<String>> taxonomy, Map<String, String> headers,
-                                              String testBaseUrl, String prodBaseUrl) {
+                                              String testBaseUrl) {
         String apiId = spec.getApiId();
         try {
             List<Map<String, Object>> dataRows = dataProviderRegistry.getData(
@@ -180,24 +185,31 @@ public class TestVsProdComparisonService {
             Map<String, String> reqHeaders = new HashMap<>(headers);
             reqHeaders.put("X-qg-request-id", jobId);
 
-            String testFullUrl = testBaseUrl + endpoint;
-            String prodFullUrl = prodBaseUrl + endpoint;
-            log.info("[COMPARE] Hitting test API: {} | X-qg-request-id={}", testFullUrl, jobId);
-            TestExecutor.ApiExecutionResult testResult = testExecutor.execute(testBaseUrl, endpoint, reqHeaders, payload, 0);
-            log.info("[COMPARE] Hitting prod API: {} | X-qg-request-id={}", prodFullUrl, jobId);
-            TestExecutor.ApiExecutionResult prodResult = testExecutor.execute(prodBaseUrl, endpoint, reqHeaders, payload, 0);
+            String fullUrl = testBaseUrl + endpoint;
 
-            String testJson = testResult.getResponsePayload();
-            String prodJson = prodResult.getResponsePayload();
+            // First request: x-bqdbx-config: DBX_ONLY
+            Map<String, String> dbxHeaders = new HashMap<>(reqHeaders);
+            dbxHeaders.put(HEADER_BQDBX_CONFIG, DBX_ONLY);
+            log.info("[COMPARE] Hitting test API (DBX_ONLY): {} | X-qg-request-id={}", fullUrl, jobId);
+            TestExecutor.ApiExecutionResult dbxResult = testExecutor.execute(testBaseUrl, endpoint, dbxHeaders, payload, 0);
 
-            if (testJson == null || !"PASS".equals(testResult.getStatus())) {
-                String errMsg = testResult.getErrorMessage() != null ? testResult.getErrorMessage() : "HTTP " + testResult.getHttpStatus();
-                String displayMsg = errMsg != null && errMsg.contains("503") ? "Test API giving 503" : errMsg;
+            // Second request: x-bqdbx-config: BQ_ONLY
+            Map<String, String> bqHeaders = new HashMap<>(reqHeaders);
+            bqHeaders.put(HEADER_BQDBX_CONFIG, BQ_ONLY);
+            log.info("[COMPARE] Hitting test API (BQ_ONLY): {} | X-qg-request-id={}", fullUrl, jobId);
+            TestExecutor.ApiExecutionResult bqResult = testExecutor.execute(testBaseUrl, endpoint, bqHeaders, payload, 0);
+
+            String dbxJson = dbxResult.getResponsePayload();
+            String bqJson = bqResult.getResponsePayload();
+
+            if (dbxJson == null || !"PASS".equals(dbxResult.getStatus())) {
+                String errMsg = dbxResult.getErrorMessage() != null ? dbxResult.getErrorMessage() : "HTTP " + dbxResult.getHttpStatus();
+                String displayMsg = errMsg != null && errMsg.contains("503") ? "DBX API giving 503" : errMsg;
                 return ApiComparisonResult.builder()
                         .apiId(apiId)
                         .jobId(jobId)
-                        .testUrl(testFullUrl)
-                        .prodUrl(prodFullUrl)
+                        .testUrl(fullUrl)
+                        .prodUrl(fullUrl)
                         .match(false)
                         .testRowCount(null)
                         .prodRowCount(null)
@@ -208,14 +220,14 @@ public class TestVsProdComparisonService {
                                 "test", displayMsg)))
                         .build();
             }
-            if (prodJson == null || !"PASS".equals(prodResult.getStatus())) {
-                String errMsg = prodResult.getErrorMessage() != null ? prodResult.getErrorMessage() : "HTTP " + prodResult.getHttpStatus();
-                String displayMsg = errMsg != null && errMsg.contains("503") ? "Prod API giving 503" : errMsg;
+            if (bqJson == null || !"PASS".equals(bqResult.getStatus())) {
+                String errMsg = bqResult.getErrorMessage() != null ? bqResult.getErrorMessage() : "HTTP " + bqResult.getHttpStatus();
+                String displayMsg = errMsg != null && errMsg.contains("503") ? "BQ API giving 503" : errMsg;
                 return ApiComparisonResult.builder()
                         .apiId(apiId)
                         .jobId(jobId)
-                        .testUrl(testFullUrl)
-                        .prodUrl(prodFullUrl)
+                        .testUrl(fullUrl)
+                        .prodUrl(fullUrl)
                         .match(false)
                         .testRowCount(null)
                         .prodRowCount(null)
@@ -227,13 +239,13 @@ public class TestVsProdComparisonService {
                         .build();
             }
 
-            ApiComparisonResult r = compareTwoJsonResponses(testJson, prodJson);
+            ApiComparisonResult r = compareTwoJsonResponses(dbxJson, bqJson);
             r.setApiId(apiId);
             r.setJobId(jobId);
-            r.setTestUrl(testFullUrl);
-            r.setProdUrl(prodFullUrl);
-            r.setTestJson(testJson);
-            r.setProdJson(prodJson);
+            r.setTestUrl(fullUrl);
+            r.setProdUrl(fullUrl);
+            r.setTestJson(dbxJson);
+            r.setProdJson(bqJson);
             r.setRequestPayload(payload);
             return r;
         } catch (Exception e) {
@@ -257,7 +269,8 @@ public class TestVsProdComparisonService {
 
     private Map<String, List<String>> fetchTaxonomy(String client, String baseUrl) {
         try {
-            String configJson = configFetcher.fetchConfig(baseUrl, client, defaultUserEmail, defaultAuthToken);
+            // Use null for userEmail so ConfigFetcher uses config-user-email (vijay.h@commerceiq.ai) - required for /rpax/user/config access
+            String configJson = configFetcher.fetchConfig(baseUrl, client, null, defaultAuthToken);
             JsonNode configNode = objectMapper.readTree(configJson);
             return taxonomyParser.parseTaxonomy(configNode);
         } catch (Exception e) {

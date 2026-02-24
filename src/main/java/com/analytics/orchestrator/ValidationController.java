@@ -63,6 +63,7 @@ public class ValidationController {
         groups.put("analytics", ValidationService.PRODUCT_CONTENT_APIS);
         groups.put("multiLocation2.0", ValidationService.MULTI_LOCATION_APIS);
         groups.put("search", ValidationService.SEARCH_APIS);
+        groups.put("pricing", ValidationService.PRICING_APIS);
         return ResponseEntity.ok(groups);
     }
 
@@ -73,6 +74,7 @@ public class ValidationController {
         groups.put("analytics", ValidationService.PRODUCT_CONTENT_APIS);
         groups.put("multiLocation2.0", ValidationService.MULTI_LOCATION_APIS);
         groups.put("search", ValidationService.SEARCH_APIS);
+        groups.put("pricing", ValidationService.PRICING_APIS);
         String json = new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(groups).toString();
         return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/javascript"))
                 .body("window.__API_GROUPS__=" + json + ";");

@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,10 +25,7 @@ public class AsyncComparisonRunner {
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
     private static final String STATUS_COMPLETED = "COMPLETED";
 
-    private static final String TRUNCATE_SUFFIX = "\n...[truncated]";
-    private static final int MAX_RESPONSE_LEN = 50000;
-    private static final int MAX_CONTENT_LEN = MAX_RESPONSE_LEN - TRUNCATE_SUFFIX.length();
-    private static final int MAX_MISMATCHES_JSON_LEN = 10000;
+    /** No truncation - store full response for complete BQ vs DBX comparison. */
 
     private final TestVsProdComparisonService comparisonService;
     private final ComparisonSuiteRepository suiteRepository;
@@ -82,10 +78,10 @@ public class AsyncComparisonRunner {
     }
 
     private void saveResult(String suiteId, TestVsProdComparisonService.ApiComparisonResult r) {
-        String mismatchesJson = truncateMismatchesJson(r.getMismatches());
-        String testResp = truncateToMax(r.getTestJson());
-        String prodResp = truncateToMax(r.getProdJson());
-        String reqPayload = truncateToMax(r.getRequestPayload());
+        String mismatchesJson = serializeMismatches(r.getMismatches());
+        String testResp = r.getTestJson();
+        String prodResp = r.getProdJson();
+        String reqPayload = r.getRequestPayload();
 
         ComparisonResult cr = ComparisonResult.builder()
                 .suiteId(suiteId)
@@ -105,35 +101,11 @@ public class AsyncComparisonRunner {
         resultRepository.save(cr);
     }
 
-    private String truncateToMax(String s) {
-        if (s == null) return null;
-        if (s.length() <= MAX_RESPONSE_LEN) return s;
-        return s.substring(0, MAX_CONTENT_LEN) + TRUNCATE_SUFFIX;
-    }
-
-    /**
-     * Truncate mismatches to fit within MISMATCHES_JSON column (10000 chars).
-     * Keeps valid JSON by limiting the number of mismatch entries stored.
-     */
-    private String truncateMismatchesJson(List<Map<String, String>> mismatches) {
+    /** Serialize full mismatches - no truncation for complete bug identification. */
+    private String serializeMismatches(List<Map<String, String>> mismatches) {
         if (mismatches == null || mismatches.isEmpty()) return null;
         try {
-            String full = objectMapper.writeValueAsString(mismatches);
-            if (full.length() <= MAX_MISMATCHES_JSON_LEN) return full;
-
-            List<Map<String, String>> truncated = new ArrayList<>();
-            int reserve = 120; // for truncation placeholder
-            for (Map<String, String> m : mismatches) {
-                truncated.add(m);
-                String json = objectMapper.writeValueAsString(truncated);
-                if (json.length() > MAX_MISMATCHES_JSON_LEN - reserve) {
-                    truncated.remove(truncated.size() - 1);
-                    int more = mismatches.size() - truncated.size();
-                    truncated.add(Map.of("path", "_truncated", "prod", more + " more mismatches not stored", "test", "N/A"));
-                    break;
-                }
-            }
-            return objectMapper.writeValueAsString(truncated);
+            return objectMapper.writeValueAsString(mismatches);
         } catch (JsonProcessingException e) {
             log.warn("Failed to serialize mismatches: {}", e.getMessage());
             return null;

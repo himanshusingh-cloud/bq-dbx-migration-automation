@@ -68,6 +68,16 @@ public class ConfigResolver {
             log.error("Failed to load search config", e);
             throw new RuntimeException("Failed to load search config", e);
         }
+        try (InputStream in = getClass().getResourceAsStream("/config/apis/pricing-apis.yaml")) {
+            if (in != null) {
+                ApiDefinition def = yamlMapper.readValue(in, ApiDefinition.class);
+                apiGroups.put("pricing", def);
+                log.info("Loaded API group 'pricing' with {} APIs", def.getApis() != null ? def.getApis().size() : 0);
+            }
+        } catch (Exception e) {
+            log.error("Failed to load pricing config", e);
+            throw new RuntimeException("Failed to load pricing config", e);
+        }
     }
 
     public String getBaseUrl(String environment) {
@@ -85,7 +95,8 @@ public class ConfigResolver {
     }
 
     public List<ApiDefinition.ApiSpec> resolveApis(String apiGroup, List<String> specificApis) {
-        String key = "analytics".equalsIgnoreCase(apiGroup) ? "productContent" : apiGroup;
+        String key = "analytics".equalsIgnoreCase(apiGroup) ? "productContent"
+                : "pricing".equalsIgnoreCase(apiGroup) ? "pricing" : apiGroup;
         ApiDefinition def = apiGroups.get(key);
         if (def == null) def = apiGroups.get(apiGroup);
         if (def == null) throw new IllegalArgumentException("Unknown API group: " + apiGroup);

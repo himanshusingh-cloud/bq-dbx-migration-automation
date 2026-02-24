@@ -50,6 +50,10 @@ public class ValidationService {
             "shareOfSearchByRetailerV2", "shareOfSearchByJourneyV2"
     );
 
+    public static final List<String> PRICING_APIS = Arrays.asList(
+            "priceAlerts", "pricingArchitecture", "pricingSummaryOverview", "pricingSummaryDetail", "priceTrends"
+    );
+
     /** JSON API for validation detail - X-qg-request-id (UUID) is jobId. HTML UI is at /alert-validation-detail/ */
     private static final String VALIDATION_DETAIL_PATH = "/api/alerts/validation/detail/";
 
@@ -122,12 +126,14 @@ public class ValidationService {
                                                     String baseUrl, String userEmail) {
         String suiteId = UUID.randomUUID().toString();
         List<String> allowedApis = "multiLocation2.0".equalsIgnoreCase(apiGroup) ? MULTI_LOCATION_APIS
-                : "search".equalsIgnoreCase(apiGroup) ? SEARCH_APIS : PRODUCT_CONTENT_APIS;
+                : "search".equalsIgnoreCase(apiGroup) ? SEARCH_APIS
+                : "pricing".equalsIgnoreCase(apiGroup) ? PRICING_APIS : PRODUCT_CONTENT_APIS;
         List<String> apisToRun = (apis != null && !apis.isEmpty()) ? apis : allowedApis;
         apisToRun = apisToRun.stream().filter(allowedApis::contains).collect(Collectors.toList());
 
         String configGroup = "analytics".equalsIgnoreCase(apiGroup) ? "productContent"
-                : "search".equalsIgnoreCase(apiGroup) ? "search" : apiGroup;
+                : "search".equalsIgnoreCase(apiGroup) ? "search"
+                : "pricing".equalsIgnoreCase(apiGroup) ? "pricing" : apiGroup;
         UserInputDetail userInput = UserInputDetail.builder()
                 .suiteId(suiteId)
                 .client(client)
