@@ -1,7 +1,10 @@
 package com.analytics.orchestrator;
 
 import io.restassured.RestAssured;
+import io.restassured.config.HttpClientConfig;
+import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
+import org.apache.http.params.CoreConnectionPNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -12,6 +15,14 @@ import java.util.Map;
 public class TestExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(TestExecutor.class);
+
+    /** 5 min timeout for slow APIs (e.g. pricing with large payloads). */
+    private static final int API_TIMEOUT_MS = 5 * 60 * 1000;
+
+    private static final RestAssuredConfig TIMEOUT_CONFIG = RestAssuredConfig.config()
+            .httpClient(HttpClientConfig.httpClientConfig()
+                    .setParam(CoreConnectionPNames.CONNECTION_TIMEOUT, API_TIMEOUT_MS)
+                    .setParam(CoreConnectionPNames.SO_TIMEOUT, API_TIMEOUT_MS));
 
     /** Default max response length 8192 (for validation flow). */
     public ApiExecutionResult execute(String baseUrl, String endpoint, Map<String, String> headers, String body) {
@@ -29,6 +40,7 @@ public class TestExecutor {
         long start = System.currentTimeMillis();
         try {
             Response response = RestAssured.given()
+                    .config(TIMEOUT_CONFIG)
                     .baseUri(baseUrl)
                     .headers(headers)
                     .body(body)

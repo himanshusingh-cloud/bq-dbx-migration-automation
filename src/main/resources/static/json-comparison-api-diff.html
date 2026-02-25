@@ -114,6 +114,8 @@
         .curl-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; max-width: 90%; max-height: 80vh; overflow: auto; }
         .curl-content pre { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; white-space: pre-wrap; word-break: break-all; margin: 0; }
         .curl-close { float: right; cursor: pointer; color: var(--text-muted); }
+        .btn-download { background: var(--accent); color: var(--bg-dark); border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem; }
+        .btn-download:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
@@ -167,6 +169,9 @@
             if (data.testDBXcurl) html += '<div class="meta-item"><button class="curl-btn" data-curl="dbx" title="Show Test DBX CURL">Test DBX CURL</button></div>';
             if (data.testBQcurl) html += '<div class="meta-item"><button class="curl-btn" data-curl="bq" title="Show Test BQ CURL">Test BQ CURL</button></div>';
             if (data.queryGenieUrl) html += '<div class="meta-item"><a href="' + escapeHtml(data.queryGenieUrl) + '" target="_blank" class="curl-btn" style="text-decoration:none;display:inline-block">Query Genie</a></div>';
+            if (!match && (data.mismatches || []).length > 0) {
+                html += '<div class="meta-item"><button class="btn-download" id="downloadDiffBtn" title="Download diff as CSV (opens in Excel/Google Sheets)">&#128190; Download Diff (CSV)</button></div>';
+            }
             html += '</div>';
 
             if (match) {
@@ -195,6 +200,10 @@
 
             document.getElementById('content').innerHTML = html;
             window._curlData = { dbx: data.testDBXcurl, bq: data.testBQcurl };
+            var dlBtn = document.getElementById('downloadDiffBtn');
+            if (dlBtn) {
+                dlBtn.addEventListener('click', function() { downloadDiffAsCsv(data); });
+            }
             document.querySelectorAll('.curl-btn[data-curl]').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     var which = this.getAttribute('data-curl');
@@ -231,6 +240,39 @@
             if (pre) {
                 navigator.clipboard.writeText(pre.textContent).then(function() { alert('Copied to clipboard'); });
             }
+        }
+
+        function escapeCsv(val) {
+            if (val == null) return '';
+            var s = String(val);
+            if (s.indexOf('"') >= 0 || s.indexOf(',') >= 0 || s.indexOf('\n') >= 0 || s.indexOf('\r') >= 0) {
+                return '"' + s.replace(/"/g, '""') + '"';
+            }
+            return s;
+        }
+
+        function downloadDiffAsCsv(data) {
+            var mismatches = data.mismatches || [];
+            if (mismatches.length === 0) return;
+            var apiId = (data.apiId || 'api').replace(/[^a-zA-Z0-9_-]/g, '_');
+            var jobId = data.jobId || '';
+            var suiteIdVal = data.suiteId || suiteId || '';
+            var rows = ['API ID,Job ID,Suite ID,Path,BQ Value,DBX Value'];
+            for (var i = 0; i < mismatches.length; i++) {
+                var m = mismatches[i];
+                var path = escapeCsv(m.path || '');
+                var prod = escapeCsv(m.prod != null ? m.prod : '');
+                var test = escapeCsv(m.test != null ? m.test : '');
+                rows.push(escapeCsv(apiId) + ',' + escapeCsv(jobId) + ',' + escapeCsv(suiteIdVal) + ',' + path + ',' + prod + ',' + test);
+            }
+            var csv = '\uFEFF' + rows.join('\n');
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'diff-' + apiId + (jobId ? '-' + jobId : '') + '.csv';
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         async function fetchData() {

@@ -7,29 +7,39 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 /**
- * Compares two JSON structures and returns differences.
- * Based on dps-data-tests UniversalJsonComparator with floating-point tolerance.
+ * Generic JSON comparator that discovers composite keys at runtime by analyzing the API response.
+ * Works with any JSON shape - no predefined field lists.
+ * <p>
+ * - Reads JSON response structure and discovers which fields uniquely identify each object
+ * - Finds minimal composite key by analyzing actual data (scalar fields, excluding metrics)
+ * - Matches objects across two JSONs by discovered composite key
+ * - Handles nested arrays with recursive key discovery per array
+ * - Produces structured output: missing records + field-level differences
  */
 public class UniversalJsonComparator {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    /** 1% relative tolerance: ignore floating point differences < 1% of value; use roundoff for comparison */
+    private static final double DEFAULT_FLOAT_TOLERANCE = 0.01;
+    private static final String KEY_DELIMITER = "|";
 
-    /** Default tolerance for floating-point comparison. Use 1e-3 to ignore minor float drift. */
-    private static final double DEFAULT_FLOAT_TOLERANCE = 1e-3;
+    /** Field name patterns that suggest metric/value fields (excluded from key discovery). */
+    private static final Pattern METRIC_FIELD_PATTERN = Pattern.compile(
+            ".*(count|_pct|score|availability|percent|amount|total|avg|sum|share|_avg|delivery|pickup|shipping|deliver|ship)\\.?$",
+            Pattern.CASE_INSENSITIVE);
 
     public static Map<String, String> flatten(Object input) throws Exception {
-        if (input instanceof Map) {
-            return flattenMap((Map<?, ?>) input);
-        } else if (input instanceof List) {
+        if (input instanceof Map) return flattenMap((Map<?, ?>) input);
+        if (input instanceof List) {
             Map<String, String> flatMap = new TreeMap<>();
             flattenMapRecursive("", input, flatMap);
             return flatMap;
-        } else if (input instanceof String) {
+        }
+        if (input instanceof String) {
             JsonNode node = objectMapper.readTree((String) input);
             return flattenJson(node, "");
-        } else {
-            throw new IllegalArgumentException("Unsupported input type: " + (input != null ? input.getClass() : "null"));
         }
+        throw new IllegalArgumentException("Unsupported input type: " + (input != null ? input.getClass() : "null"));
     }
 
     private static Map<String, String> flattenMap(Map<?, ?> input) {
@@ -78,114 +88,82 @@ public class UniversalJsonComparator {
 
     private static final Pattern FLOAT_PATTERN = Pattern.compile("^-?\\d+(\\.\\d+)?([eE][+-]?\\d+)?$");
 
+    /** Normalize id/product_id for matching: "Walgreens-USprod6020383" and "Walgreens-US-prod6020383" -> same key */
+    private static final Pattern ID_RETAILER_PRODUCT = Pattern.compile("^(.+?-[A-Z]{2})(-?)(.+)$", Pattern.CASE_INSENSITIVE);
+
     private static boolean isNumeric(String s) {
         if (s == null || s.isBlank()) return false;
         return FLOAT_PATTERN.matcher(s.trim()).matches();
     }
 
     /**
-     * Compare two values with floating-point tolerance. Returns true if equal (including minor float mismatch).
+     * Compare values with 1% relative tolerance for floats.
+     * - If difference < 1% of the value: consider equal (minor floating point / roundoff)
+     * - If difference >= 1%: consider mismatch
+     * - For values near zero: use absolute tolerance 1e-6
      */
     private static boolean valuesEqualWithFloatTolerance(String val1, String val2, double tolerance) {
         if (Objects.equals(val1, val2)) return true;
-
         String n1 = val1 == null ? "null" : val1.trim();
         String n2 = val2 == null ? "null" : val2.trim();
 
-        // null/0/0.0 equivalence (from dps-data-tests)
         if (("null".equalsIgnoreCase(n1) && "0.0".equals(n2)) || ("null".equalsIgnoreCase(n2) && "0.0".equals(n1))) return true;
         if (("0".equals(n1) && "0.0".equals(n2)) || ("0".equals(n2) && "0.0".equals(n1))) return true;
         if (("0".equals(n1) && "null".equalsIgnoreCase(n2)) || ("0".equals(n2) && "null".equalsIgnoreCase(n1))) return true;
         if ((".0".equals(n1) && "0.0".equals(n2)) || (".0".equals(n2) && "0.0".equals(n1))) return true;
-        // null vs 1 for availability_pct and similar (treat as equivalent when comparing)
         if (("null".equalsIgnoreCase(n1) && "1".equals(n2)) || ("1".equals(n1) && "null".equalsIgnoreCase(n2))) return true;
 
-        // Floating-point comparison
         if (isNumeric(n1) && isNumeric(n2)) {
             try {
                 double d1 = Double.parseDouble(n1);
                 double d2 = Double.parseDouble(n2);
-                return Math.abs(d1 - d2) <= tolerance;
+                boolean isInt1 = d1 == Math.floor(d1) && !Double.isInfinite(d1);
+                boolean isInt2 = d2 == Math.floor(d2) && !Double.isInfinite(d2);
+                if (isInt1 && isInt2) {
+                    return d1 == d2;
+                }
+                double absDiff = Math.abs(d1 - d2);
+                double maxAbs = Math.max(Math.abs(d1), Math.abs(d2));
+                if (maxAbs < 1e-10) {
+                    return absDiff < 1e-6;
+                }
+                double relativeDiff = absDiff / maxAbs;
+                return relativeDiff <= tolerance;
             } catch (NumberFormatException ignored) {
                 return false;
             }
         }
+        if (normalizeKeyValueForMatching(n1, "").equals(normalizeKeyValueForMatching(n2, ""))) {
+            return true;
+        }
         return false;
     }
 
-    /**
-     * Compare two JSON objects. Ignores minor floating-point differences.
-     *
-     * @param json1 First JSON (Map, or JSON string)
-     * @param json2 Second JSON (Map, or JSON string)
-     * @return List of differences
-     */
     public static List<JsonDiff> compare(Object json1, Object json2) throws Exception {
         return compare(json1, json2, DEFAULT_FLOAT_TOLERANCE);
     }
 
-    /**
-     * Compare two JSON objects with custom floating-point tolerance.
-     * Uses product_id (or id, retailer, etc.) to match items in nested arrays - only compares same product_id.
-     *
-     * @param json1      First JSON (Map, or JSON string)
-     * @param json2      Second JSON (Map, or JSON string)
-     * @param floatTolerance Tolerance for numeric comparison (e.g. 1e-6)
-     * @return List of differences
-     */
     public static List<JsonDiff> compare(Object json1, Object json2, double floatTolerance) throws Exception {
-        Object norm1 = normalizeForComparison(json1);
-        Object norm2 = normalizeForComparison(json2);
-        List<JsonDiff> recursiveDiffs = compareRecursiveWithPrimaryKey("", norm1, norm2, floatTolerance);
-        if (recursiveDiffs != null) return recursiveDiffs;
-        Map<String, String> flat1 = flatten(norm1);
-        Map<String, String> flat2 = flatten(norm2);
-
-        List<JsonDiff> diffs = new ArrayList<>();
-        Set<String> allKeys = new TreeSet<>();
-        allKeys.addAll(flat1.keySet());
-        allKeys.addAll(flat2.keySet());
-
-        List<String> ignoredMeasureSuffixes = Arrays.asList(
-                "dsa_m_average_review",
-                "dsa_m_review_count"
-        );
-
-        Set<String> processedKeys = new HashSet<>();
-
-        for (String key : allKeys) {
-            if (processedKeys.contains(key)) continue;
-            if (key.startsWith("Total.")) continue;
-            if (ignoredMeasureSuffixes.stream().anyMatch(key::endsWith)) continue;
-
-            // Special _v2 key handling (from dps-data-tests)
-            if (key.endsWith("_v2")) {
-                String baseKey = key.replace("_v2", "");
-                String val1 = flat1.get(baseKey);
-                String val2 = flat2.get(key);
-                if (!valuesEqualWithFloatTolerance(val1, val2, floatTolerance)) {
-                    diffs.add(new JsonDiff(baseKey + " vs " + key, val2, val1));
-                }
-                processedKeys.add(baseKey);
-                processedKeys.add(key);
-                continue;
-            }
-            if (allKeys.contains(key + "_v2")) {
-                processedKeys.add(key);
-                continue;
-            }
-
-            String val1 = flat1.get(key);
-            String val2 = flat2.get(key);
-            if (valuesEqualWithFloatTolerance(val1, val2, floatTolerance)) continue;
-            diffs.add(new JsonDiff(key, val2, val1));
-        }
-        return diffs;
+        JsonComparisonResult result = compareStructured(json1, json2, floatTolerance);
+        return result.toFlatDiffs();
     }
 
     /**
-     * Normalize JSON for comparison: sort arrays of objects by key (retailer, etc.) so order differences don't cause false mismatches.
+     * Compare two JSON objects and return structured result.
+     *
+     * @param json1          First JSON (Map, List, or JSON string)
+     * @param json2          Second JSON
+     * @param floatTolerance Tolerance for numeric comparison
+     * @return Structured result with missing records and field differences
      */
+    public static JsonComparisonResult compareStructured(Object json1, Object json2, double floatTolerance) throws Exception {
+        Object norm1 = normalizeForComparison(json1);
+        Object norm2 = normalizeForComparison(json2);
+        JsonComparisonResult result = new JsonComparisonResult();
+        compareRecursive("", norm1, norm2, floatTolerance, result);
+        return result;
+    }
+
     @SuppressWarnings("unchecked")
     private static Object normalizeForComparison(Object obj) throws Exception {
         if (obj instanceof String) {
@@ -216,185 +194,313 @@ public class UniversalJsonComparator {
                 for (Object item : list) {
                     sorted.add((Map<String, Object>) normalizeForComparison(item));
                 }
-                String sortKey = findSortKey(sorted.get(0));
-                if (sortKey != null) {
-                    sorted.sort(Comparator.comparing(m -> getSortableValue(m, sortKey)));
+                List<String> sortFields = discoverCompositeKeyFromResponse(sorted, sorted);
+                if (!sortFields.isEmpty()) {
+                    sorted.sort(Comparator.comparing(m -> buildCompositeKeyValue(m, sortFields)));
                 }
                 return sorted;
             }
             List<Object> result = new ArrayList<>();
-            for (Object item : list) {
-                result.add(normalizeForComparison(item));
-            }
+            for (Object item : list) result.add(normalizeForComparison(item));
             return result;
         }
         return obj;
     }
 
-    private static String findSortKey(Map<String, Object> map) {
-        for (String k : Arrays.asList("retailer", "brand", "product_id")) {
-            if (map.containsKey(k)) return k;
-        }
-        if (map.containsKey("date")) {
-            Object d = map.get("date");
-            if (d instanceof Map && ((Map<?, ?>) d).containsKey("value")) return "date";
-        }
-        return map.isEmpty() ? null : map.keySet().iterator().next();
+    /**
+     * Discover composite key by analyzing the actual JSON response.
+     * Scans objects in both arrays, collects scalar fields (excluding metrics),
+     * finds minimal combination that uniquely identifies each object.
+     */
+    private static List<String> discoverCompositeKeyFromResponse(List<Map<String, Object>> items1, List<Map<String, Object>> items2) {
+        List<Map<String, Object>> allItems = new ArrayList<>();
+        allItems.addAll(items1);
+        allItems.addAll(items2);
+        if (allItems.isEmpty()) return Collections.emptyList();
+
+        List<String> keyCandidates = collectKeyCandidateFields(allItems.get(0));
+        if (keyCandidates.isEmpty()) return Collections.emptyList();
+
+        return findMinimalUniqueKeyCombination(items1, items2, keyCandidates);
     }
 
-    private static String getSortableValue(Map<String, Object> m, String sortKey) {
-        Object v = m.get(sortKey);
-        if (v instanceof Map) {
-            Object val = ((Map<?, ?>) v).get("value");
-            return val != null ? String.valueOf(val) : "";
+    /** Preferred key fields for modalitiesInsights and similar structures (id, product_id first). */
+    private static final List<String> PREFERRED_KEY_FIELDS = List.of("id", "product_id", "retailer", "store_id", "date.value");
+
+    /**
+     * Collect scalar field paths from object that could form a key.
+     * Excludes metric-like fields (count, _pct, score, etc.) and nested arrays.
+     * Prioritizes id, product_id for modalitiesInsights nodes.
+     */
+    private static List<String> collectKeyCandidateFields(Map<String, Object> item) {
+        List<String> candidates = new ArrayList<>();
+        collectKeyCandidatesRecursive(item, "", candidates);
+        return candidates.stream()
+                .filter(f -> !METRIC_FIELD_PATTERN.matcher(f).matches())
+                .sorted(UniversalJsonComparator::keyFieldPriority)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private static int keyFieldPriority(String a, String b) {
+        int ia = preferredKeyIndex(a);
+        int ib = preferredKeyIndex(b);
+        if (ia != ib) return Integer.compare(ia, ib);
+        return a.compareTo(b);
+    }
+
+    private static int preferredKeyIndex(String fieldPath) {
+        String leaf = fieldPath.contains(".") ? fieldPath.substring(fieldPath.lastIndexOf('.') + 1) : fieldPath;
+        for (int i = 0; i < PREFERRED_KEY_FIELDS.size(); i++) {
+            if (leaf.equalsIgnoreCase(PREFERRED_KEY_FIELDS.get(i))) return i;
         }
-        return v != null ? String.valueOf(v) : "";
+        return PREFERRED_KEY_FIELDS.size();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void collectKeyCandidatesRecursive(Map<String, Object> map, String prefix, List<String> out) {
+        for (Map.Entry<String, Object> e : map.entrySet()) {
+            String path = prefix.isEmpty() ? e.getKey() : prefix + "." + e.getKey();
+            Object v = e.getValue();
+            if (v == null) {
+                out.add(path);
+            } else if (v instanceof Map) {
+                Map<?, ?> nested = (Map<?, ?>) v;
+                if (nested.containsKey("value")) {
+                    out.add(path + ".value");
+                } else {
+                    collectKeyCandidatesRecursive((Map<String, Object>) v, path, out);
+                }
+            } else if (!(v instanceof List)) {
+                out.add(path);
+            }
+        }
     }
 
     /**
-     * Recursively compare with primary-key matching for nested arrays.
-     * When both values are arrays of objects with product_id (or id, retailer, etc.),
-     * matches items by that key and only compares same-key pairs.
-     * Returns null if fallback to flatten-based compare is needed.
+     * Find smallest combination of fields that produces unique keys within each array.
+     * Key must be unique per array (for correct grouping), not necessarily across combined set.
      */
-    @SuppressWarnings("unchecked")
-    private static List<JsonDiff> compareRecursiveWithPrimaryKey(String path, Object obj1, Object obj2, double floatTolerance) throws Exception {
-        if (obj1 instanceof List && obj2 instanceof List) {
-            List<?> list1 = (List<?>) obj1;
-            List<?> list2 = (List<?>) obj2;
-            if (list1.isEmpty() && list2.isEmpty()) return new ArrayList<>();
-            if (!list1.isEmpty() && list1.get(0) instanceof Map && !list2.isEmpty() && list2.get(0) instanceof Map) {
-                List<Map<String, Object>> items1 = (List<Map<String, Object>>) list1;
-                List<Map<String, Object>> items2 = (List<Map<String, Object>>) list2;
-                String pk = detectPrimaryKey(items1.isEmpty() ? items2.get(0) : items1.get(0));
-                if (pk == null) {
-                    List<JsonDiff> allDiffs = new ArrayList<>();
-                    int maxLen = Math.max(list1.size(), list2.size());
-                    for (int i = 0; i < maxLen; i++) {
-                        Object a = i < list1.size() ? list1.get(i) : null;
-                        Object b = i < list2.size() ? list2.get(i) : null;
-                        List<JsonDiff> sub = compareRecursiveWithPrimaryKey(path + "[" + i + "]", a != null ? a : Collections.emptyMap(), b != null ? b : Collections.emptyMap(), floatTolerance);
-                        if (sub != null) allDiffs.addAll(sub);
-                    }
-                    return allDiffs;
-                }
-                if (pk != null) {
-                    Map<String, Map<String, Object>> byKey1 = groupByPrimaryKey(items1, pk);
-                    Map<String, Map<String, Object>> byKey2 = groupByPrimaryKey(items2, pk);
-                    List<JsonDiff> allDiffs = new ArrayList<>();
-                    Set<String> common = new HashSet<>(byKey1.keySet());
-                    common.retainAll(byKey2.keySet());
-                    for (String key : common) {
-                        List<JsonDiff> sub = compareRecursiveWithPrimaryKey(path + "[" + pk + "=" + key + "]", byKey1.get(key), byKey2.get(key), floatTolerance);
-                        if (sub != null) {
-                            for (JsonDiff d : sub) allDiffs.add(d);
-                        } else {
-                            Map<String, String> flat1 = flatten(byKey1.get(key));
-                            Map<String, String> flat2 = flatten(byKey2.get(key));
-                            for (String k : new TreeSet<>(flat1.keySet())) {
-                                String v1 = flat1.get(k);
-                                String v2 = flat2.get(k);
-                                if (!valuesEqualWithFloatTolerance(v1, v2, floatTolerance)) {
-                                    allDiffs.add(new JsonDiff(path + "[" + pk + "=" + key + "]." + k, v2, v1));
-                                }
-                            }
-                            for (String k : flat2.keySet()) {
-                                if (!flat1.containsKey(k)) {
-                                    allDiffs.add(new JsonDiff(path + "[" + pk + "=" + key + "]." + k, flat2.get(k), null));
-                                }
-                            }
-                        }
-                    }
-                    for (String key : byKey2.keySet()) {
-                        if (!byKey1.containsKey(key)) {
-                            Map<String, Object> m = byKey2.get(key);
-                            for (Map.Entry<String, ?> e : m.entrySet()) {
-                                Object v = e.getValue();
-                                if (!(v instanceof Map) && !(v instanceof List)) {
-                                    allDiffs.add(new JsonDiff(path + "[" + pk + "=" + key + "]." + e.getKey(), String.valueOf(v), ""));
-                                }
-                            }
-                        }
-                    }
-                    for (String key : byKey1.keySet()) {
-                        if (!byKey2.containsKey(key)) {
-                            Map<String, Object> m = byKey1.get(key);
-                            for (Map.Entry<String, ?> e : m.entrySet()) {
-                                Object v = e.getValue();
-                                if (!(v instanceof Map) && !(v instanceof List)) {
-                                    allDiffs.add(new JsonDiff(path + "[" + pk + "=" + key + "]." + e.getKey(), "", String.valueOf(v)));
-                                }
-                            }
-                        }
-                    }
-                    return allDiffs;
-                }
-            }
+    private static List<String> findMinimalUniqueKeyCombination(List<Map<String, Object>> items1,
+                                                                List<Map<String, Object>> items2,
+                                                                List<String> candidates) {
+        for (int len = 1; len <= candidates.size(); len++) {
+            List<String> combo = tryCombinations(items1, items2, candidates, len, 0, new ArrayList<>());
+            if (combo != null) return combo;
         }
-        if (obj1 instanceof Map && obj2 instanceof Map) {
-            Map<?, ?> m1 = (Map<?, ?>) obj1;
-            Map<?, ?> m2 = (Map<?, ?>) obj2;
-            List<JsonDiff> allDiffs = new ArrayList<>();
-            Set<String> allKeys = new TreeSet<>();
-            m1.keySet().forEach(k -> allKeys.add(String.valueOf(k)));
-            m2.keySet().forEach(k -> allKeys.add(String.valueOf(k)));
-            for (String k : allKeys) {
-                Object v1 = m1.get(k);
-                Object v2 = m2.get(k);
-                String subPath = path.isEmpty() ? k : path + "." + k;
-                if (v1 == null && v2 == null) continue;
-                if (v1 == null) {
-                    if (v2 instanceof Map || v2 instanceof List) {
-                        List<JsonDiff> sub = compareRecursiveWithPrimaryKey(subPath, Collections.emptyMap(), v2, floatTolerance);
-                        if (sub != null) allDiffs.addAll(sub);
-                        else allDiffs.add(new JsonDiff(subPath, flattenValue(v2), ""));
-                    } else allDiffs.add(new JsonDiff(subPath, String.valueOf(v2), ""));
-                    continue;
-                }
-                if (v2 == null) {
-                    if (v1 instanceof Map || v1 instanceof List) {
-                        List<JsonDiff> sub = compareRecursiveWithPrimaryKey(subPath, v1, Collections.emptyMap(), floatTolerance);
-                        if (sub != null) allDiffs.addAll(sub);
-                        else allDiffs.add(new JsonDiff(subPath, "", flattenValue(v1)));
-                    } else allDiffs.add(new JsonDiff(subPath, "", String.valueOf(v1)));
-                    continue;
-                }
-                List<JsonDiff> sub = compareRecursiveWithPrimaryKey(subPath, v1, v2, floatTolerance);
-                if (sub != null) {
-                    allDiffs.addAll(sub);
-                } else {
-                    String s1 = flattenValue(v1);
-                    String s2 = flattenValue(v2);
-                    if (!valuesEqualWithFloatTolerance(s1, s2, floatTolerance)) {
-                        allDiffs.add(new JsonDiff(subPath, s2, s1));
-                    }
-                }
-            }
-            return allDiffs;
+        return Collections.emptyList();
+    }
+
+    private static List<String> tryCombinations(List<Map<String, Object>> items1, List<Map<String, Object>> items2,
+                                                 List<String> candidates, int targetLen, int start, List<String> current) {
+        if (current.size() == targetLen) {
+            if (!isUniqueWithinItems(items1, current) || !isUniqueWithinItems(items2, current)) return null;
+            return new ArrayList<>(current);
+        }
+        for (int i = start; i < candidates.size(); i++) {
+            current.add(candidates.get(i));
+            List<String> result = tryCombinations(items1, items2, candidates, targetLen, i + 1, current);
+            current.remove(current.size() - 1);
+            if (result != null) return result;
         }
         return null;
     }
 
-    private static String detectPrimaryKey(Map<String, Object> item) {
-        for (String k : Arrays.asList("product_id", "id", "retailer", "brand", "gtin")) {
-            if (item.containsKey(k) && item.get(k) != null) return k;
+    private static boolean isUniqueWithinItems(List<Map<String, Object>> items, List<String> keyFields) {
+        Set<String> keys = new HashSet<>();
+        for (Map<String, Object> item : items) {
+            String key = buildCompositeKeyValue(item, keyFields);
+            if (key.isEmpty()) return false;
+            if (!keys.add(key)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Extract value for a field path. Supports dot notation (e.g. date.value).
+     * Uses case-insensitive key lookup for robustness (e.g. "Locations" vs "locations").
+     */
+    private static String extractFieldValue(Map<String, Object> item, String fieldPath) {
+        if (fieldPath.contains(".")) {
+            String[] parts = fieldPath.split("\\.", 2);
+            Object nested = getMapValueCaseInsensitive(item, parts[0]);
+            if (nested instanceof Map) {
+                return extractFieldValue((Map<String, Object>) nested, parts[1]);
+            }
+            return null;
+        }
+        Object v = getMapValueCaseInsensitive(item, fieldPath);
+        if (v == null) return null;
+        if (v instanceof Map) {
+            Object val = getMapValueCaseInsensitive((Map<String, Object>) v, "value");
+            return val != null ? String.valueOf(val) : null;
+        }
+        return String.valueOf(v);
+    }
+
+    private static Object getMapValueCaseInsensitive(Map<String, Object> map, String key) {
+        if (map.containsKey(key)) return map.get(key);
+        for (Map.Entry<String, Object> e : map.entrySet()) {
+            if (e.getKey().equalsIgnoreCase(key)) return e.getValue();
         }
         return null;
     }
 
-    private static Map<String, Map<String, Object>> groupByPrimaryKey(List<Map<String, Object>> items, String keyField) {
+    private static String buildCompositeKeyValue(Map<String, Object> item, List<String> fields) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < fields.size(); i++) {
+            String val = extractFieldValue(item, fields.get(i));
+            if (val != null) {
+                if (i > 0) sb.append(KEY_DELIMITER);
+                sb.append(normalizeKeyValueForMatching(val, fields.get(i)));
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Normalize key values for matching. Handles modalitiesInsights id format:
+     * "Walgreens-USprod6020383" vs "Walgreens-US-prod6020383" -> same normalized form.
+     * "Kroger-US0002113618087" vs "Kroger-US-0002113618087" -> same.
+     */
+    private static String normalizeKeyValueForMatching(String val, String fieldPath) {
+        if (val == null || val.isBlank()) return val;
+        String s = val.trim();
+        if (s.length() < 4) return s;
+        java.util.regex.Matcher m = ID_RETAILER_PRODUCT.matcher(s);
+        if (m.matches()) {
+            String retailer = m.group(1);
+            String productPart = m.group(3);
+            return retailer + "-" + productPart;
+        }
+        return s;
+    }
+
+    private static Map<String, Map<String, Object>> groupByCompositeKey(List<Map<String, Object>> items, List<String> keyFields) {
         Map<String, Map<String, Object>> result = new LinkedHashMap<>();
         for (Map<String, Object> item : items) {
-            Object keyVal = item.get(keyField);
-            if (keyVal != null) {
-                String keyStr = String.valueOf(keyVal);
-                if (!keyStr.isEmpty()) result.put(keyStr, item);
-            }
+            String key = buildCompositeKeyValue(item, keyFields);
+            if (!key.isEmpty()) result.put(key, item);
         }
         return result;
     }
 
-    private static String flattenValue(Object v) {
+    @SuppressWarnings("unchecked")
+    private static void compareRecursive(String path, Object obj1, Object obj2, double floatTolerance, JsonComparisonResult result) throws Exception {
+        if (obj1 instanceof List && obj2 instanceof List) {
+            List<?> list1 = (List<?>) obj1;
+            List<?> list2 = (List<?>) obj2;
+            if (list1.isEmpty() && list2.isEmpty()) return;
+
+            if (!list1.isEmpty() && list1.get(0) instanceof Map && !list2.isEmpty() && list2.get(0) instanceof Map) {
+                List<Map<String, Object>> items1 = (List<Map<String, Object>>) list1;
+                List<Map<String, Object>> items2 = (List<Map<String, Object>>) list2;
+                List<String> keyFields = discoverCompositeKeyFromResponse(items1, items2);
+
+                if (keyFields.isEmpty()) {
+                    int maxLen = Math.max(list1.size(), list2.size());
+                    for (int i = 0; i < maxLen; i++) {
+                        Object a = i < list1.size() ? list1.get(i) : Collections.emptyMap();
+                        Object b = i < list2.size() ? list2.get(i) : Collections.emptyMap();
+                        compareRecursive(path + "[" + i + "]", a, b, floatTolerance, result);
+                    }
+                    return;
+                }
+
+                Map<String, Map<String, Object>> byKey1 = groupByCompositeKey(items1, keyFields);
+                Map<String, Map<String, Object>> byKey2 = groupByCompositeKey(items2, keyFields);
+
+                Set<String> onlyInFirst = new TreeSet<>(byKey1.keySet());
+                onlyInFirst.removeAll(byKey2.keySet());
+                Set<String> onlyInSecond = new TreeSet<>(byKey2.keySet());
+                onlyInSecond.removeAll(byKey1.keySet());
+
+                String keyLabel = String.join(",", keyFields);
+                for (String k : onlyInFirst) {
+                    result.addMissingInSecond(path, keyLabel, k);
+                }
+                for (String k : onlyInSecond) {
+                    result.addMissingInFirst(path, keyLabel, k);
+                }
+
+                Set<String> common = new HashSet<>(byKey1.keySet());
+                common.retainAll(byKey2.keySet());
+                for (String key : common) {
+                    String subPath = path + "[" + keyLabel + "=" + key + "]";
+                    compareRecursive(subPath, byKey1.get(key), byKey2.get(key), floatTolerance, result);
+                }
+                return;
+            }
+        }
+
+        if (obj1 instanceof Map && obj2 instanceof Map) {
+            Map<?, ?> m1 = (Map<?, ?>) obj1;
+            Map<?, ?> m2 = (Map<?, ?>) obj2;
+            Set<String> allKeys = new TreeSet<>();
+            m1.keySet().forEach(k -> allKeys.add(String.valueOf(k)));
+            m2.keySet().forEach(k -> allKeys.add(String.valueOf(k)));
+
+            for (String k : allKeys) {
+                Object v1 = m1.get(k);
+                Object v2 = m2.get(k);
+                String subPath = path.isEmpty() ? k : path + "." + k;
+
+                if (v1 == null && v2 == null) continue;
+                if (v1 == null) {
+                    result.addFieldDiff(subPath, valueToString(v2), "null");
+                    continue;
+                }
+                if (v2 == null) {
+                    result.addFieldDiff(subPath, "null", valueToString(v1));
+                    continue;
+                }
+
+                if ((v1 instanceof Map && v2 instanceof Map) || (v1 instanceof List && v2 instanceof List)) {
+                    compareRecursive(subPath, v1, v2, floatTolerance, result);
+                } else {
+                    Map<String, String> flat1 = flattenScalarOrFlatten(v1);
+                    Map<String, String> flat2 = flattenScalarOrFlatten(v2);
+                    if (flat1 != null && flat2 != null) {
+                        Set<String> keys = new TreeSet<>();
+                        keys.addAll(flat1.keySet());
+                        keys.addAll(flat2.keySet());
+                        for (String fk : keys) {
+                            String s1 = flat1.get(fk);
+                            String s2 = flat2.get(fk);
+                            if (!valuesEqualWithFloatTolerance(s1, s2, floatTolerance)) {
+                                result.addFieldDiff(subPath + (fk.isEmpty() ? "" : "." + fk), s2, s1);
+                            }
+                        }
+                    } else {
+                        String s1 = valueToString(v1);
+                        String s2 = valueToString(v2);
+                        if (!valuesEqualWithFloatTolerance(s1, s2, floatTolerance)) {
+                            result.addFieldDiff(subPath, s2, s1);
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        String s1 = valueToString(obj1);
+        String s2 = valueToString(obj2);
+        if (!valuesEqualWithFloatTolerance(s1, s2, floatTolerance)) {
+            result.addFieldDiff(path, s2, s1);
+        }
+    }
+
+    private static Map<String, String> flattenScalarOrFlatten(Object v) {
+        if (v instanceof Map || v instanceof List) {
+            try {
+                return flatten(v);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static String valueToString(Object v) {
         if (v == null) return "null";
         if (v instanceof Map || v instanceof List) {
             try {
@@ -405,5 +511,77 @@ public class UniversalJsonComparator {
             }
         }
         return String.valueOf(v);
+    }
+
+    /**
+     * Structured comparison result: missing records + field-level differences.
+     */
+    public static class JsonComparisonResult {
+        private final List<String> missingInFirst = new ArrayList<>();
+        private final List<String> missingInSecond = new ArrayList<>();
+        private final List<FieldDiff> fieldDifferences = new ArrayList<>();
+
+        void addMissingInFirst(String path, String keyLabel, String compositeKey) {
+            missingInFirst.add(path + "[" + keyLabel + "=" + compositeKey + "]");
+        }
+
+        void addMissingInSecond(String path, String keyLabel, String compositeKey) {
+            missingInSecond.add(path + "[" + keyLabel + "=" + compositeKey + "]");
+        }
+
+        void addFieldDiff(String path, String value1, String value2) {
+            fieldDifferences.add(new FieldDiff(path, value1, value2));
+        }
+
+        public List<String> getMissingInFirst() {
+            return Collections.unmodifiableList(missingInFirst);
+        }
+
+        public List<String> getMissingInSecond() {
+            return Collections.unmodifiableList(missingInSecond);
+        }
+
+        public List<FieldDiff> getFieldDifferences() {
+            return Collections.unmodifiableList(fieldDifferences);
+        }
+
+        public List<JsonDiff> toFlatDiffs() {
+            List<JsonDiff> diffs = new ArrayList<>();
+            for (String k : missingInFirst) {
+                diffs.add(new JsonDiff(k, "present in second", "missing in first"));
+            }
+            for (String k : missingInSecond) {
+                diffs.add(new JsonDiff(k, "missing in second", "present in first"));
+            }
+            for (FieldDiff fd : fieldDifferences) {
+                diffs.add(new JsonDiff(fd.path, fd.value1, fd.value2));
+            }
+            return diffs;
+        }
+
+        public Map<String, Object> toStructuredMap() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("missingInFirst", missingInFirst);
+            m.put("missingInSecond", missingInSecond);
+            m.put("fieldDifferences", fieldDifferences.stream()
+                    .map(fd -> Map.<String, Object>of(
+                            "path", fd.path,
+                            "value1", fd.value1 != null ? fd.value1 : "",
+                            "value2", fd.value2 != null ? fd.value2 : ""))
+                    .collect(java.util.stream.Collectors.toList()));
+            return m;
+        }
+
+        static class FieldDiff {
+            final String path;
+            final String value1;
+            final String value2;
+
+            FieldDiff(String path, String value1, String value2) {
+                this.path = path;
+                this.value1 = value1;
+                this.value2 = value2;
+            }
+        }
     }
 }

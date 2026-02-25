@@ -151,9 +151,14 @@
                 }
                 html += '</div></div></div>';
                 if (r.status === 'completed') {
+                    html += '<div class="api-links">';
                     if (r.mismatchReportURL) {
-                        html += '<div class="api-links"><a href="' + escapeHtml(r.mismatchReportURL) + '">View full diff report</a></div>';
+                        html += '<a href="' + escapeHtml(r.mismatchReportURL) + '">View full diff report</a>';
                     }
+                    if (r.queryGenieUrl) {
+                        html += (r.mismatchReportURL ? ' | ' : '') + '<a href="' + escapeHtml(r.queryGenieUrl) + '" target="_blank">Query Genie</a>';
+                    }
+                    html += '</div>';
                 }
                 if (r.status === 'in_progress') {
                     html += '<div class="empty">Running comparison...</div>';

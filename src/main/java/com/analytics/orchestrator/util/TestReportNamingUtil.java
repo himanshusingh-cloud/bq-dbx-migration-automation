@@ -16,6 +16,8 @@ public final class TestReportNamingUtil {
     private static final String SEARCH_METHOD = "hitSearchAPI";
     private static final String PRICING_CLASS = "PricingAPITest";
     private static final String PRICING_METHOD = "hitPricingAPI";
+    private static final String PROMOTION_CLASS = "PromotionAPITest";
+    private static final String PROMOTION_METHOD = "hitPromotionAPI";
     private static final String DEFAULT_CLASS = "ValidationAPITest";
     private static final String DEFAULT_METHOD = "hitValidationAPI";
 
@@ -26,6 +28,7 @@ public final class TestReportNamingUtil {
         GROUP_TO_NAMES.put("multiLocation2.0", new String[]{MULTI_LOCATION_CLASS, MULTI_LOCATION_METHOD});
         GROUP_TO_NAMES.put("search", new String[]{SEARCH_CLASS, SEARCH_METHOD});
         GROUP_TO_NAMES.put("pricing", new String[]{PRICING_CLASS, PRICING_METHOD});
+        GROUP_TO_NAMES.put("promotion", new String[]{PROMOTION_CLASS, PROMOTION_METHOD});
     }
 
     private TestReportNamingUtil() {

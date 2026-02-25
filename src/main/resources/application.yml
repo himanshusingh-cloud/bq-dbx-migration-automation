@@ -22,12 +22,17 @@ validation:
   # Poll alert-validation-detail/{UUID} until data or timeout
   xqg-poll-interval-seconds: ${VALIDATION_XQG_POLL_INTERVAL:5}
   xqg-poll-timeout-seconds: ${VALIDATION_XQG_POLL_TIMEOUT:180}
+  # Brief wait for Query Genie record - proceed to DBX/BQ after this. Set to 0 to skip.
+  json-comparison-poll-timeout-seconds: ${VALIDATION_JSON_COMPARISON_POLL_TIMEOUT:5}
+  # If DBX+BQ response total (chars) exceeds this, retry with reduced filters. Default 500KB.
+  max-response-size-for-comparison: ${VALIDATION_MAX_RESPONSE_SIZE:500000}
   # Timeout for entire validation run - if not completed within this time, stop and mark suite completed
   timeout-minutes: ${VALIDATION_TIMEOUT_MINUTES:5}
 
 spring:
   datasource:
     # Default: H2 (local file). For MySQL: use profile 'test' - Dspring-boot.run.profiles=test (see DB_SETUP.md)
+    # Use profile 'dev' for in-memory H2 (avoids "Database already in use" when file is locked)
     url: jdbc:h2:file:./data/analytics;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
     username: sa

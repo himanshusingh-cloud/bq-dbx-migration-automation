@@ -25,7 +25,11 @@ public class AsyncComparisonRunner {
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
     private static final String STATUS_COMPLETED = "COMPLETED";
 
-    /** No truncation - store full response for complete BQ vs DBX comparison. */
+    /** Max bytes per LOB column to avoid MySQL PacketTooBigException (max_allowed_packet ~67MB). */
+    private static final int MAX_LOB_BYTES = 5 * 1024 * 1024;
+
+    /** H2 uses VARCHAR(10000) for @Lob - truncate mismatches to fit. MySQL uses LONGTEXT. */
+    private static final int MAX_MISMATCHES_JSON_CHARS = 9000;
 
     private final TestVsProdComparisonService comparisonService;
     private final ComparisonSuiteRepository suiteRepository;
@@ -78,10 +82,10 @@ public class AsyncComparisonRunner {
     }
 
     private void saveResult(String suiteId, TestVsProdComparisonService.ApiComparisonResult r) {
-        String mismatchesJson = serializeMismatches(r.getMismatches());
-        String testResp = r.getTestJson();
-        String prodResp = r.getProdJson();
-        String reqPayload = r.getRequestPayload();
+        String mismatchesJson = truncateMismatchesForDb(serializeMismatches(r.getMismatches()));
+        String testResp = truncateForDb(r.getTestJson());
+        String prodResp = truncateForDb(r.getProdJson());
+        String reqPayload = truncateForDb(r.getRequestPayload());
 
         ComparisonResult cr = ComparisonResult.builder()
                 .suiteId(suiteId)
@@ -101,7 +105,19 @@ public class AsyncComparisonRunner {
         resultRepository.save(cr);
     }
 
-    /** Serialize full mismatches - no truncation for complete bug identification. */
+    private String truncateForDb(String s) {
+        if (s == null) return null;
+        if (s.length() <= MAX_LOB_BYTES) return s;
+        return s.substring(0, MAX_LOB_BYTES) + "\n...[truncated, total " + s.length() + " chars]";
+    }
+
+    /** Truncate mismatches to fit H2 VARCHAR(10000). MySQL LONGTEXT has no practical limit. */
+    private String truncateMismatchesForDb(String s) {
+        if (s == null) return null;
+        if (s.length() <= MAX_MISMATCHES_JSON_CHARS) return s;
+        return s.substring(0, MAX_MISMATCHES_JSON_CHARS) + "\n...[truncated, total " + s.length() + " mismatches]";
+    }
+
     private String serializeMismatches(List<Map<String, String>> mismatches) {
         if (mismatches == null || mismatches.isEmpty()) return null;
         try {
@@ -134,6 +150,7 @@ public class AsyncComparisonRunner {
                     .mismatchesJson(mismatchesJson)
                     .testResponseJson(null)
                     .prodResponseJson(null)
+                    .requestPayload(null)
                     .build();
             resultRepository.save(cr);
         } catch (Exception e) {

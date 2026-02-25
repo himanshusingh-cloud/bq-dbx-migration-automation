@@ -67,41 +67,76 @@ public class ComparisonController {
         log.info("POST /json-comparison/run | client={} startDate={} endDate={} apiGroup={}",
                 request.getClient(), request.getStartDate(), request.getEndDate(), request.getApiGroup());
 
-        List<String> apisList = configResolver.resolveApis(request.getApiGroup(), request.getApis())
-                .stream().map(ApiDefinition.ApiSpec::getApiId).collect(Collectors.toList());
-        String apisStr = String.join(",", apisList);
+        try {
+            if (request.getClient() == null || request.getClient().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "client is required"));
+            }
+            if (request.getApiGroup() == null || request.getApiGroup().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "apiGroup is required"));
+            }
 
-        String suiteId = UUID.randomUUID().toString();
-        ComparisonSuite suite = ComparisonSuite.builder()
-                .suiteId(suiteId)
-                .client(request.getClient())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .apiGroup(request.getApiGroup())
-                .suiteStatus("IN_PROGRESS")
-                .apis(apisStr)
-                .build();
-        suiteRepository.save(suite);
+            List<String> apisList = configResolver.resolveApis(request.getApiGroup(), request.getApis())
+                    .stream().map(ApiDefinition.ApiSpec::getApiId).collect(Collectors.toList());
+            String apisStr = String.join(",", apisList);
 
-        asyncRunner.runAsync(
-                suiteId,
-                request.getClient(),
-                request.getStartDate(),
-                request.getEndDate(),
-                request.getApiGroup(),
-                request.getApis());
+            String suiteId = UUID.randomUUID().toString();
+            ComparisonSuite suite = ComparisonSuite.builder()
+                    .suiteId(suiteId)
+                    .client(request.getClient())
+                    .startDate(request.getStartDate())
+                    .endDate(request.getEndDate())
+                    .apiGroup(request.getApiGroup())
+                    .suiteStatus("IN_PROGRESS")
+                    .apis(apisStr)
+                    .build();
+            suiteRepository.save(suite);
 
-        String reportUrl = reportBaseUrl.replaceAll("/$", "") + "/json-comparison-report/" + suiteId;
-        Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("suiteId", suiteId);
-        resp.put("suiteStatus", "IN_PROGRESS");
-        resp.put("client", request.getClient());
-        resp.put("startDate", request.getStartDate());
-        resp.put("endDate", request.getEndDate());
-        resp.put("apiGroup", request.getApiGroup());
-        resp.put("apis", apisList);
-        resp.put("reportUrl", reportUrl);
-        return ResponseEntity.ok(resp);
+            asyncRunner.runAsync(
+                    suiteId,
+                    request.getClient(),
+                    request.getStartDate(),
+                    request.getEndDate(),
+                    request.getApiGroup(),
+                    request.getApis());
+
+            String reportUrl = reportBaseUrl.replaceAll("/$", "") + "/json-comparison-report/" + suiteId;
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("suiteId", suiteId);
+            resp.put("suiteStatus", "IN_PROGRESS");
+            resp.put("client", request.getClient());
+            resp.put("startDate", request.getStartDate());
+            resp.put("endDate", request.getEndDate());
+            resp.put("apiGroup", request.getApiGroup());
+            resp.put("apis", apisList);
+            resp.put("reportUrl", reportUrl);
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            log.error("json-comparison/run failed (DB save?): {} - falling back to sync", e.getMessage());
+            try {
+                List<TestVsProdComparisonService.ApiComparisonResult> results = comparisonService.runComparison(
+                        request.getClient(),
+                        request.getStartDate(),
+                        request.getEndDate(),
+                        request.getApiGroup(),
+                        request.getApis());
+                Map<String, Object> response = new LinkedHashMap<>();
+                response.put("suiteId", null);
+                response.put("suiteStatus", "COMPLETED_SYNC_FALLBACK");
+                response.put("client", request.getClient());
+                response.put("startDate", request.getStartDate());
+                response.put("endDate", request.getEndDate());
+                response.put("apiGroup", request.getApiGroup());
+                response.put("results", results.stream().map(this::toResultMap).collect(Collectors.toList()));
+                response.put("summary", buildSummary(results));
+                response.put("note", "Persistence failed (" + e.getMessage() + ") - results returned inline");
+                return ResponseEntity.ok(response);
+            } catch (Exception fallbackEx) {
+                log.error("Sync fallback also failed: {}", fallbackEx.getMessage(), fallbackEx);
+                return ResponseEntity.status(500).body(Map.of(
+                        "error", fallbackEx.getMessage() != null ? fallbackEx.getMessage() : "Unknown error",
+                        "exception", fallbackEx.getClass().getSimpleName()));
+            }
+        }
     }
 
     /**
@@ -145,6 +180,10 @@ public class ComparisonController {
                 m.put("testStatus", pass ? "pass" : "fail");
                 String mismatchReportURL = reportBase + "/api/" + URLEncoder.encode(aid, StandardCharsets.UTF_8).replace("+", "%20");
                 m.put("mismatchReportURL", mismatchReportURL);
+                String queryGenieUrl = r.getJobId() != null && !r.getJobId().isBlank()
+                        ? queryGenieBaseUrl.replaceAll("/$", "") + "/alert-validation-detail/" + r.getJobId()
+                        : null;
+                m.put("queryGenieUrl", queryGenieUrl);
             }
             apiResults.add(m);
         }
@@ -178,6 +217,8 @@ public class ComparisonController {
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("apiId", r.getApiId());
+        m.put("jobId", r.getJobId());
+        m.put("suiteId", suiteId);
         m.put("match", r.getMatch());
         m.put("testRowCount", r.getTestRowCount());
         m.put("prodRowCount", r.getProdRowCount());

@@ -1,8 +1,10 @@
-# Database Setup – MySQL for Validation Results
+# Database Setup – MySQL for Validation Results & JSON Comparison
 
 ## Why No Results in MySQL Workbench?
 
 **By default, the app uses H2 (file-based database), not MySQL.** Data is stored in `./data/analytics.mv.db` locally. If you query MySQL Workbench without running the app with the MySQL profile, you will get **0 rows**.
+
+**For JSON comparison:** Use the `test` profile so data goes to MySQL. H2 limits `mismatches_json` to 10K chars and can fail with "Value too long for column".
 
 ---
 
@@ -98,9 +100,46 @@ SELECT * FROM test_report_detail WHERE job_id = 'your-job-id';
 | 3 | Use the **suiteId from the curl response** in your MySQL query (not an old/different ID) |
 | 4 | Wait for validation to complete before querying (check `suite_status = 'COMPLETED'`) |
 
+## JSON Comparison (comparison_result, comparison_suite)
+
+**Start the app with MySQL profile** (required for json-comparison – H2 limits column size):
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=test
+```
+
+Run json-comparison:
+
+```bash
+curl -X POST http://localhost:8080/api/json-comparison/run \
+  -H "Content-Type: application/json" \
+  -d '{"client":"kellanova-us","startDate":"2026-01-20","endDate":"2026-02-28","apiGroup":"pricing"}'
+```
+
+Query results in MySQL Workbench:
+
+```sql
+-- List comparison suites
+SELECT suite_id, client, api_group, suite_status, start_date, end_date, apis
+FROM comparison_suite
+ORDER BY suite_id DESC
+LIMIT 20;
+
+-- Get results for a suite
+SELECT c.api_id, c.job_id, c.is_match, c.test_row_count, c.prod_row_count, c.mismatch_count
+FROM comparison_result c
+WHERE c.suite_id = 'YOUR_SUITE_ID'
+ORDER BY c.id;
+```
+
 ## Troubleshooting
 
-**If you get "Column length too big" or table creation errors:** Drop the table and restart:
+**If you get "Value too long for column" or "Column length too big":** Use MySQL (not H2) for json-comparison:
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=test
+```
+
+**If tables exist with wrong schema:** Drop and let JPA recreate:
 ```sql
 DROP TABLE IF EXISTS comparison_result;
 DROP TABLE IF EXISTS comparison_suite;
@@ -114,4 +153,5 @@ Then run `mvn spring-boot:run -Dspring-boot.run.profiles=test` again.
 | Run Command | Database | Where Data Is Stored |
 |-------------|----------|----------------------|
 | `mvn spring-boot:run` | H2 (default) | `./data/analytics.mv.db` (local file) |
-| `mvn spring-boot:run -Dspring-boot.run.profiles=test` | MySQL | `analytics_test` schema |
+| `mvn spring-boot:run -Dspring-boot.run.profiles=dev` | H2 (in-memory) | No persistence – avoids file lock |
+| `mvn spring-boot:run -Dspring-boot.run.profiles=test` | **MySQL** | `analytics_test` – use for MySQL Workbench |

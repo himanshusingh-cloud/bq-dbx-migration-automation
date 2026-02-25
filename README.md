@@ -19,7 +19,11 @@ mvn spring-boot:run
 
 Server starts at http://localhost:8080
 
-**Note:** Default uses H2 (file DB). For MySQL (e.g. to query results in MySQL Workbench), run with:
+**Note:** Default uses H2 (file DB). If you see "Database may be already in use", either stop other instances or use in-memory H2:
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
+**For MySQL Workbench and json-comparison** (avoids "Value too long for column" on large mismatches):
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=test
 ```
@@ -68,6 +72,8 @@ curl -X POST http://localhost:8080/api/run-tests-sync \
 | GET | /api/validation/api-groups | List available API groups and their APIs |
 | GET | /api/validation/detail/{jobId} | Proxy to validation API for raw detail |
 | POST | /api/run-tests-sync | Run tests synchronously (returns full result + reportUrl) |
+| POST | /api/json-comparison/run | JSON comparison (DBX vs BQ) – **use MySQL profile** for large results |
+| GET | /api/json-comparison/{suiteId} | Get comparison results by suite ID |
 | GET | /api/executions/{id} | Get execution by ID |
 
 ---

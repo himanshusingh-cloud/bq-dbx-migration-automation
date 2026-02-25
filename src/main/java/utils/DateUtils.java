@@ -8,6 +8,29 @@ public class DateUtils {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
+    /**
+     * Normalize date string - if invalid (e.g. 2026-02-31), return last valid day of month.
+     * Prevents 500 from analytics API when end_date is invalid.
+     */
+    public static String normalizeDate(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) return dateStr;
+        try {
+            LocalDate.parse(dateStr, FMT);
+            return dateStr;
+        } catch (Exception e) {
+            try {
+                String[] parts = dateStr.split("-");
+                if (parts.length == 3) {
+                    int year = Integer.parseInt(parts[0]);
+                    int month = Integer.parseInt(parts[1]);
+                    LocalDate lastDay = LocalDate.of(year, month, 1).plusMonths(1).minusDays(1);
+                    return lastDay.format(FMT);
+                }
+            } catch (Exception ignored) { }
+        }
+        return dateStr;
+    }
+
     public static String daysAgo(int days) {
         return LocalDate.now().minusDays(days).format(FMT);
     }

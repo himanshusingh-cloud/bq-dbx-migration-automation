@@ -1,0 +1,22 @@
+apiGroup: promotion
+apis:
+  - apiId: promotionsInsights
+    endpoint: /analytics/query/promotionsInsights
+    method: POST
+    template: promotionsInsights
+    dataProvider: dateRanges
+  - apiId: promotionsInsightsDetail
+    endpoint: /analytics/query/promotionsInsightsDetail
+    method: POST
+    template: promotionsInsightsDetail
+    dataProvider: dateRanges
+  - apiId: promotionalCalendar
+    endpoint: /analytics/query/promotionalCalendar
+    method: POST
+    template: promotionalCalendar
+    dataProvider: dateRanges
+  - apiId: bannersOverview
+    endpoint: /analytics/query/bannersOverview
+    method: POST
+    template: bannersOverview
+    dataProvider: dateRanges

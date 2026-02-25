@@ -236,6 +236,31 @@ public class TaxonomyFieldMappingRegistry {
         mappings.put("pricingSummaryOverview", pricingMappingWithSubBrands);
         mappings.put("pricingSummaryDetail", pricingMappingWithSubBrands);
         mappings.put("priceTrends", pricingMappingWithSubBrands);
+        // Promotion APIs
+        Map<String, String> promotionsInsightsMapping = Map.of(
+                "retailers", "retailers",
+                "categories", "categories",
+                "sub_categories", "sub_categories",
+                "my_manufacturers", "manufacturers",
+                "my_brands", "brands",
+                "my_sub_brands", "sub_brands",
+                "multi_location_retailers", "retailers"
+        );
+        mappings.put("promotionsInsights", promotionsInsightsMapping);
+        mappings.put("promotionsInsightsDetail", promotionsInsightsMapping);
+        mappings.put("promotionalCalendar", Map.of(
+                "retailers", "retailers",
+                "manufacturers", "manufacturers",
+                "brands", "brands",
+                "sub_brands", "sub_brands",
+                "categories", "categories",
+                "sub_categories", "sub_categories"
+        ));
+        mappings.put("bannersOverview", Map.of(
+                "retailers", "retailers",
+                "manufacturers", "manufacturers",
+                "brands", "brands"
+        ));
     }
 
     public Map<String, String> getFieldMappings(String templateName) {

@@ -48,6 +48,9 @@ public class ConfigTaxonomyParser {
     private List<String> parseManufacturers(JsonNode config) {
         List<String> list = new ArrayList<>();
         JsonNode node = config.path("manufacturer");
+        if (node.isMissingNode()) {
+            node = config.path("manufacturers");
+        }
         if (node.isArray()) {
             node.forEach(m -> list.add(normalizeApostrophes(m.asText())));
         }
