@@ -82,7 +82,7 @@ public class AsyncComparisonRunner {
     }
 
     private void saveResult(String suiteId, TestVsProdComparisonService.ApiComparisonResult r) {
-        String mismatchesJson = truncateMismatchesForDb(serializeMismatches(r.getMismatches()));
+        String mismatchesJson = serializeMismatchesTruncated(r.getMismatches());
         String testResp = truncateForDb(r.getTestJson());
         String prodResp = truncateForDb(r.getProdJson());
         String reqPayload = truncateForDb(r.getRequestPayload());
@@ -111,17 +111,21 @@ public class AsyncComparisonRunner {
         return s.substring(0, MAX_LOB_BYTES) + "\n...[truncated, total " + s.length() + " chars]";
     }
 
-    /** Truncate mismatches to fit H2 VARCHAR(10000). MySQL LONGTEXT has no practical limit. */
-    private String truncateMismatchesForDb(String s) {
-        if (s == null) return null;
-        if (s.length() <= MAX_MISMATCHES_JSON_CHARS) return s;
-        return s.substring(0, MAX_MISMATCHES_JSON_CHARS) + "\n...[truncated, total " + s.length() + " mismatches]";
-    }
-
-    private String serializeMismatches(List<Map<String, String>> mismatches) {
+    /** Serialize mismatches as valid JSON, truncating by item count to fit H2 VARCHAR(10000). */
+    private String serializeMismatchesTruncated(List<Map<String, String>> mismatches) {
         if (mismatches == null || mismatches.isEmpty()) return null;
         try {
-            return objectMapper.writeValueAsString(mismatches);
+            String full = objectMapper.writeValueAsString(mismatches);
+            if (full.length() <= MAX_MISMATCHES_JSON_CHARS) return full;
+            for (int n = mismatches.size(); n > 0; n--) {
+                List<Map<String, String>> subset = mismatches.subList(0, n);
+                String json = objectMapper.writeValueAsString(subset);
+                if (json.length() <= MAX_MISMATCHES_JSON_CHARS) {
+                    log.info("[COMPARE-ASYNC] Truncated mismatches to {} items (total={}) to fit DB column", n, mismatches.size());
+                    return json;
+                }
+            }
+            return "[]";
         } catch (JsonProcessingException e) {
             log.warn("Failed to serialize mismatches: {}", e.getMessage());
             return null;

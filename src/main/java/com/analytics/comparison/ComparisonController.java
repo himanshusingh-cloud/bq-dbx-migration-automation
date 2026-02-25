@@ -240,7 +240,8 @@ public class ComparisonController {
             try {
                 m.put("mismatches", objectMapper.readValue(r.getMismatchesJson(), new TypeReference<List<Map<String, String>>>() {}));
             } catch (Exception e) {
-                m.put("mismatches", Collections.emptyList());
+                List<Map<String, String>> recovered = tryRecoverMismatchesFromTruncated(r.getMismatchesJson());
+                m.put("mismatches", recovered != null ? recovered : Collections.emptyList());
             }
         } else {
             m.put("mismatches", Collections.emptyList());
@@ -263,6 +264,21 @@ public class ComparisonController {
         if (json == null || json.isBlank()) return true;
         String t = json.trim();
         return "[]".equals(t) || "{}".equals(t) || "null".equals(t);
+    }
+
+    /** Recover mismatches from old-style truncated JSON (cut mid-string produced invalid JSON). */
+    private List<Map<String, String>> tryRecoverMismatchesFromTruncated(String json) {
+        if (json == null || json.isBlank()) return null;
+        int truncIdx = json.indexOf("...[truncated");
+        String before = truncIdx > 0 ? json.substring(0, truncIdx).trim() : json;
+        int lastComma = before.lastIndexOf("},{");
+        if (lastComma > 0) {
+            String candidate = before.substring(0, lastComma) + "}]";
+            try {
+                return objectMapper.readValue(candidate, new TypeReference<List<Map<String, String>>>() {});
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 
     private String buildCurl(String url, String jobId, String payload, Map<String, String> headers) {
