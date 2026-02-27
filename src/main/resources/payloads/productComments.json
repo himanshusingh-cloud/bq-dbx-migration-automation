@@ -1,0 +1,1 @@
+{"parameters":{"retailer":"{{retailer}}","product_id":"{{product_id}}"},"labels":{"source":"core-service","client_id":"{{client_id}}","user_id":"unified-user"}}

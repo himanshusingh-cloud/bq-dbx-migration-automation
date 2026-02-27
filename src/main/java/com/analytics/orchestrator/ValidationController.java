@@ -65,6 +65,8 @@ public class ValidationController {
         groups.put("search", ValidationService.SEARCH_APIS);
         groups.put("pricing", ValidationService.PRICING_APIS);
         groups.put("promotion", ValidationService.PROMOTION_APIS);
+        groups.put("rating&reviews", ValidationService.RATING_REVIEWS_APIS);
+        groups.put("export", ValidationService.EXPORT_APIS);
         return ResponseEntity.ok(groups);
     }
 
@@ -77,6 +79,8 @@ public class ValidationController {
         groups.put("search", ValidationService.SEARCH_APIS);
         groups.put("pricing", ValidationService.PRICING_APIS);
         groups.put("promotion", ValidationService.PROMOTION_APIS);
+        groups.put("rating&reviews", ValidationService.RATING_REVIEWS_APIS);
+        groups.put("export", ValidationService.EXPORT_APIS);
         String json = new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(groups).toString();
         return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/javascript"))
                 .body("window.__API_GROUPS__=" + json + ";");

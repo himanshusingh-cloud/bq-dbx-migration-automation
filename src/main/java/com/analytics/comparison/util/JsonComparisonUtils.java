@@ -53,6 +53,26 @@ public final class JsonComparisonUtils {
     }
 
     private static Integer countFromKnownPaths(JsonNode node) {
+        // rowCount / totalRows / total_count as direct integer (e.g. BigQuery, GA)
+        JsonNode rowCount = node.path("rowCount");
+        if (rowCount.isNumber() && rowCount.asInt() >= 0) return rowCount.asInt();
+        rowCount = node.path("totalRows");
+        if (rowCount.isNumber() && rowCount.asInt() >= 0) return rowCount.asInt();
+        rowCount = node.path("total_count");
+        if (rowCount.isNumber() && rowCount.asInt() >= 0) return rowCount.asInt();
+
+        // rows at root (common in analytics APIs)
+        JsonNode rows = node.path("rows");
+        if (rows.isArray()) return rows.size() == 0 ? null : rows.size();
+
+        // records at root
+        JsonNode records = node.path("records");
+        if (records.isArray()) return records.size() == 0 ? null : records.size();
+
+        // items at root
+        JsonNode itemsRoot = node.path("items");
+        if (itemsRoot.isArray()) return itemsRoot.size() == 0 ? null : itemsRoot.size();
+
         // data array
         JsonNode data = node.path("data");
         if (data.isArray()) {
@@ -63,6 +83,15 @@ public final class JsonComparisonUtils {
             if (results.isArray()) return results.size() == 0 ? null : results.size();
             JsonNode items = data.path("items");
             if (items.isArray()) return items.size() == 0 ? null : items.size();
+            JsonNode dataRows = data.path("rows");
+            if (dataRows.isArray()) return dataRows.size() == 0 ? null : dataRows.size();
+            JsonNode dataRecords = data.path("records");
+            if (dataRecords.isArray()) return dataRecords.size() == 0 ? null : dataRecords.size();
+            // data as string (CSV content in JSON wrapper)
+            if (data.isTextual()) {
+                int csv = countCsvRows(data.asText());
+                return csv >= 0 ? csv : null;
+            }
         }
 
         // results at root

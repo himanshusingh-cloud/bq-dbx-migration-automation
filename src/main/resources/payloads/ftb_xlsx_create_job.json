@@ -1,0 +1,77 @@
+{
+  "modelId": "ftb_xlsx",
+  "parameters": {
+    "brands": [],
+    "categories": [],
+    "manufacturers": [],
+    "retailers": [],
+    "sub_categories": [],
+    "start_date": "{{start_date}}",
+    "end_date": "{{end_date}}",
+    "client_id": "{{client_id}}"
+  },
+  "essentialClientConfig": {
+    "clientId": "{{client_id}}",
+    "config": {
+      "rag": {
+        "easyToBuy": {"red": 0.85, "amber": 0.85, "green": 0.95},
+        "fixTheBasics": {"red": 0.85, "amber": 0.85, "green": 0.95},
+        "shoppersVoice": {"red": 0.85, "amber": 0.85, "green": 0.95},
+        "categoryVision": {"red": 0.85, "amber": 0.85, "green": 0.95},
+        "sellTheBenefits": {"red": 0.85, "amber": 0.85, "green": 0.95},
+        "smartPromotions": {"red": 0.85, "amber": 0.85, "green": 0.95},
+        "valueThatCounts": {"red": 0.85, "amber": 0.85, "green": 0.95},
+        "winningCampaigns": {"red": 0.85, "amber": 0.85, "green": 0.95}
+      },
+      "useGraph": true,
+      "skuGroupNames": []
+    },
+    "features": {
+      "assortmentInsights": true,
+      "availabilityInsights": true,
+      "contentManagement": true,
+      "extraContent": true,
+      "multiLocationAvailabilityV2": true,
+      "procat": true,
+      "stbGoldStandardFeatures": true,
+      "procatAdmin": true,
+      "skuGroupsAdmin": true,
+      "locationGroupsSelfService": true,
+      "outOfStock": true,
+      "filterOnboarding": true,
+      "enableIMAP_DashboardReportView": true
+    },
+    "view": {
+      "compliance": {
+        "fields": [
+          {"name": "name", "path": "name", "display": "Product Name", "showOnPopup": false, "showOnTable": true},
+          {"name": "ingredients", "path": "ingredients", "display": "Composition", "showOnPopup": true, "showOnTable": true},
+          {"name": "nutrition", "path": "nutrition", "display": "Nutrition", "showOnPopup": true, "showOnTable": true},
+          {"name": "manufacturer", "path": "manufacturer", "display": "Manufacturer", "showOnPopup": true, "showOnTable": true},
+          {"name": "netQuantity", "path": "netQuantity", "width": "8%", "display": "Net Quantity", "showOnPopup": true, "showOnTable": true},
+          {"name": "storage", "path": "storage", "display": "Storage", "showOnPopup": true, "showOnTable": true},
+          {"name": "instructions", "path": "instructions", "display": "Instructions", "showOnPopup": true, "showOnTable": true},
+          {"name": "price", "path": "price", "display": "Price", "showOnPopup": true, "showOnTable": false},
+          {"name": "pricePerUnit", "path": "pricePerUnit", "display": "Price Per Unit", "showOnPopup": true, "showOnTable": false},
+          {"name": "gtin", "path": "pdb.gtin", "display": "GTIN", "showOnPopup": true, "showOnTable": true},
+          {"name": "gatheredDataTime", "path": "timestamp", "display": "Last Seen", "showOnPopup": true, "showOnTable": true},
+          {"name": "url", "path": "url", "display": "URL", "showOnPopup": true, "showOnTable": false}
+        ],
+        "display": "Product Compliance"
+      }
+    }
+  },
+  "options": {
+    "filename": "productContent",
+    "fileFormat": "xlsx",
+    "format": "xlsx",
+    "username": "Himanshu Singh",
+    "module": "ftb_xlsx",
+    "clientId": "{{client_id}}"
+  },
+  "labels": {
+    "source": "core-service",
+    "client_id": "{{client_id}}",
+    "user_id": "unified-user"
+  }
+}

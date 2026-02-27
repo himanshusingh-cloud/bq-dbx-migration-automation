@@ -18,6 +18,10 @@ public final class TestReportNamingUtil {
     private static final String PRICING_METHOD = "hitPricingAPI";
     private static final String PROMOTION_CLASS = "PromotionAPITest";
     private static final String PROMOTION_METHOD = "hitPromotionAPI";
+    private static final String RATING_REVIEWS_CLASS = "RatingReviewsAPITest";
+    private static final String RATING_REVIEWS_METHOD = "hitRatingReviewsAPI";
+    private static final String EXPORT_CLASS = "ExportAPITest";
+    private static final String EXPORT_METHOD = "hitExportAPI";
     private static final String DEFAULT_CLASS = "ValidationAPITest";
     private static final String DEFAULT_METHOD = "hitValidationAPI";
 
@@ -29,6 +33,9 @@ public final class TestReportNamingUtil {
         GROUP_TO_NAMES.put("search", new String[]{SEARCH_CLASS, SEARCH_METHOD});
         GROUP_TO_NAMES.put("pricing", new String[]{PRICING_CLASS, PRICING_METHOD});
         GROUP_TO_NAMES.put("promotion", new String[]{PROMOTION_CLASS, PROMOTION_METHOD});
+        GROUP_TO_NAMES.put("ratingReviews", new String[]{RATING_REVIEWS_CLASS, RATING_REVIEWS_METHOD});
+        GROUP_TO_NAMES.put("rating&reviews", new String[]{RATING_REVIEWS_CLASS, RATING_REVIEWS_METHOD});
+        GROUP_TO_NAMES.put("export", new String[]{EXPORT_CLASS, EXPORT_METHOD});
     }
 
     private TestReportNamingUtil() {

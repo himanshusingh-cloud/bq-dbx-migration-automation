@@ -261,6 +261,131 @@ public class TaxonomyFieldMappingRegistry {
                 "manufacturers", "manufacturers",
                 "brands", "brands"
         ));
+        // Rating & Reviews APIs
+        mappings.put("feedbackOverview", Map.of(
+                "retailers", "retailers",
+                "categories", "categories",
+                "client_manufacturers", "manufacturers",
+                "manufacturers", "manufacturers"
+        ));
+        mappings.put("retailerFeedback", Map.of(
+                "retailers", "retailers",
+                "categories", "categories",
+                "brands", "brands",
+                "manufacturers", "manufacturers"
+        ));
+        mappings.put("retailerReviews", Map.of(
+                "retailers", "retailers",
+                "categories", "categories",
+                "sub_categories", "sub_categories",
+                "manufacturers", "manufacturers",
+                "brands", "brands"
+        ));
+        mappings.put("productComments", Map.of());
+        mappings.put("productReviews", Map.of(
+                "retailers", "retailers",
+                "categories", "categories",
+                "sub_categories", "sub_categories",
+                "manufacturers", "manufacturers",
+                "brands", "brands"
+        ));
+        mappings.put("ratingTrend", Map.of(
+                "retailer", "retailers",
+                "categories", "categories",
+                "brands", "brands"
+        ));
+        // Export APIs
+        mappings.put("ftb_xlsx_create_job", Map.of(
+                "brands", "brands",
+                "categories", "categories",
+                "manufacturers", "manufacturers",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories"
+        ));
+        mappings.put("ftb_xlsx_query", Map.of(
+                "brands", "brands",
+                "categories", "categories",
+                "manufacturers", "manufacturers",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories"
+        ));
+        // ftb - accepts brands, categories, manufacturers, retailers, sub_categories (no sub_brands)
+        Map<String, String> ftbMapping = Map.of(
+                "brands", "brands",
+                "categories", "categories",
+                "manufacturers", "manufacturers",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories"
+        );
+        mappings.put("ftb_create_job", ftbMapping);
+        mappings.put("ftb_query", ftbMapping);
+        // availability, ratingReviewsSummary - do NOT accept manufacturers or sub_brands
+        Map<String, String> availabilityExportMapping = Map.of(
+                "brands", "brands",
+                "categories", "categories",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories"
+        );
+        mappings.put("availability_create_job", availabilityExportMapping);
+        mappings.put("availability_query", availabilityExportMapping);
+        mappings.put("ratingReviewsSummary_create_job", availabilityExportMapping);
+        mappings.put("ratingReviewsSummary_query", availabilityExportMapping);
+        Map<String, String> exportMapping = Map.of(
+                "brands", "brands",
+                "categories", "categories",
+                "manufacturers", "manufacturers",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories",
+                "sub_brands", "sub_brands"
+        );
+        mappings.put("export_create_job", exportMapping);
+        mappings.put("export_query", exportMapping);
+        Map<String, String> pricingMapping = Map.of(
+                "categories", "categories",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories",
+                "sub_brands", "sub_brands"
+        );
+        mappings.put("pricing_create_job", pricingMapping);
+        mappings.put("pricing_query", pricingMapping);
+        mappings.put("wc_xlsx_create_job", pricingMapping);
+        mappings.put("wc_xlsx_query", pricingMapping);
+        // pricingSummary_xlsx and mlaPricingSummary use sub_brands (schema does not accept brands)
+        Map<String, String> pricingSubBrandsMapping = Map.of(
+                "categories", "categories",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories",
+                "sub_brands", "sub_brands"
+        );
+        mappings.put("pricingSummary_xlsx_create_job", pricingSubBrandsMapping);
+        mappings.put("pricingSummary_xlsx_query", pricingSubBrandsMapping);
+        mappings.put("mlaPricingSummary_create_job", pricingSubBrandsMapping);
+        mappings.put("mlaPricingSummary_query", pricingSubBrandsMapping);
+        // banners: only brands + retailers
+        Map<String, String> bannersMapping = Map.of(
+                "brands", "brands",
+                "retailers", "retailers"
+        );
+        mappings.put("banners_create_job", bannersMapping);
+        mappings.put("banners_query", bannersMapping);
+        // categoryRanking and ratingReviews: brands + categories + retailers + sub_categories
+        Map<String, String> rankingMapping = Map.of(
+                "brands", "brands",
+                "categories", "categories",
+                "retailers", "retailers",
+                "sub_categories", "sub_categories"
+        );
+        mappings.put("categoryRanking_create_job", rankingMapping);
+        mappings.put("categoryRanking_query", rankingMapping);
+        mappings.put("ratingReviews_create_job", rankingMapping);
+        mappings.put("ratingReviews_query", rankingMapping);
+        Map<String, String> searchRankingMapping = Map.of(
+                "manufacturers", "manufacturers",
+                "retailers", "retailers",
+                "journeys", "journeys"
+        );
+        mappings.put("searchRanking_create_job", searchRankingMapping);
+        mappings.put("searchRanking_query", searchRankingMapping);
     }
 
     public Map<String, String> getFieldMappings(String templateName) {

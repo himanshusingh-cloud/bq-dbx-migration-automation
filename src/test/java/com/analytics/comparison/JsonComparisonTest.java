@@ -155,6 +155,14 @@ public class JsonComparisonTest {
         assertTrue(diffs.isEmpty(), "id format Walgreens-USprod6020383 vs Walgreens-US-prod6020383 should match: " + diffs);
     }
 
+    @Test(description = "productComments content field with [bracket] text - must not parse as JSON")
+    public void productComments_contentWithBracketText_shouldNotParseAsJson() throws Exception {
+        String json1 = "[{\"subject\":\"Great\",\"rating\":5,\"content\":\"[This review was collected as part of a promotion.] This Twix Bar is one of my favorites.\",\"username\":\"u1\"}]";
+        String json2 = "[{\"subject\":\"Great\",\"rating\":5,\"content\":\"[This review was collected as part of a promotion.] This Twix Bar is one of my favorites.\",\"username\":\"u1\"}]";
+        List<JsonDiff> diffs = UniversalJsonComparator.compare(json1, json2);
+        assertTrue(diffs.isEmpty(), "Content with [bracket] text must not cause parse error: " + diffs);
+    }
+
     @Test(description = "Structured output - missing records and field diffs")
     public void compareStructured_outputFormat() throws Exception {
         String json1 = "[{\"retailer\":\"R1\",\"store_id\":\"1\",\"count\":10}]";

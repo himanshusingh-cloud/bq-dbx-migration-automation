@@ -1,0 +1,187 @@
+apiGroup: export
+apis:
+  - apiId: ftb_xlsx
+    endpoint: /analytics/query/ftb_xlsx
+    method: POST
+    template: ftb_xlsx_query
+    dataProvider: dateRanges
+    modelId: ftb_xlsx
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: ftb_xlsx_create_job
+    queryTemplate: ftb_xlsx_query
+    optionsFilename: productContent
+    optionsFileFormat: xlsx
+    optionsFormat: xlsx
+    optionsModule: ftb_xlsx
+
+  - apiId: ftb
+    endpoint: /analytics/query/ftb
+    method: POST
+    template: ftb_query
+    dataProvider: dateRanges
+    modelId: ftb
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: ftb_create_job
+    queryTemplate: ftb_query
+    optionsFilename: productContent1
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: ftb
+
+  - apiId: productTests
+    endpoint: /analytics/query/productTests
+    method: POST
+    template: export_query
+    dataProvider: dateRanges
+    modelId: productTests
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: export_create_job
+    queryTemplate: export_query
+    optionsFilename: productContent2
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: productTests
+
+  - apiId: pricingSummary_xlsx
+    endpoint: /analytics/query/pricingSummary_xlsx
+    method: POST
+    template: pricingSummary_xlsx_query
+    dataProvider: dateRanges
+    modelId: pricingSummary_xlsx
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: pricingSummary_xlsx_create_job
+    queryTemplate: pricingSummary_xlsx_query
+    optionsFilename: pricing1
+    optionsFileFormat: xlsx
+    optionsFormat: xlsx
+    optionsModule: pricingSummary_xlsx
+
+  - apiId: pricingSummary
+    endpoint: /analytics/query/pricingSummary
+    method: POST
+    template: pricing_query
+    dataProvider: dateRanges
+    modelId: pricingSummary
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: pricing_create_job
+    queryTemplate: pricing_query
+    optionsFilename: pricing2
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: pricingSummary
+
+  - apiId: mlaPricingSummary
+    endpoint: /analytics/query/mlaPricingSummary
+    method: POST
+    template: mlaPricingSummary_query
+    dataProvider: dateRanges
+    modelId: mlaPricingSummary
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: mlaPricingSummary_create_job
+    queryTemplate: mlaPricingSummary_query
+    optionsFilename: ML1
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: mlaPricingSummary
+    version: 1
+
+  - apiId: wc_xlsx
+    endpoint: /analytics/query/wc_xlsx
+    method: POST
+    template: wc_xlsx_query
+    dataProvider: dateRanges
+    modelId: wc_xlsx
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: wc_xlsx_create_job
+    queryTemplate: wc_xlsx_query
+    optionsFilename: promotion
+    optionsFileFormat: xlsx
+    optionsFormat: xlsx
+    optionsModule: wc_xlsx
+    hidePromotions: true
+    optionsMergeCells: true
+    optionsYearAgoView: false
+
+  - apiId: searchRanking
+    endpoint: /analytics/query/searchRanking
+    method: POST
+    template: searchRanking_query
+    dataProvider: dateRanges
+    modelId: searchRanking
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: searchRanking_create_job
+    queryTemplate: searchRanking_query
+    optionsFilename: search
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: searchRanking
+
+  - apiId: availability
+    endpoint: /analytics/query/availability
+    method: POST
+    template: availability_query
+    dataProvider: dateRanges
+    modelId: availability
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: availability_create_job
+    queryTemplate: availability_query
+    optionsFilename: availability
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: availability
+
+  - apiId: ratingReviewsSummary
+    endpoint: /analytics/query/ratingReviewsSummary
+    method: POST
+    template: ratingReviewsSummary_query
+    dataProvider: dateRanges
+    modelId: ratingReviewsSummary
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: ratingReviewsSummary_create_job
+    queryTemplate: ratingReviewsSummary_query
+    optionsFilename: ratingreview
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: ratingReviewsSummary
+
+  - apiId: banners
+    endpoint: /analytics/query/banners
+    method: POST
+    template: banners_query
+    dataProvider: dateRanges
+    modelId: banners
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: banners_create_job
+    queryTemplate: banners_query
+    optionsFilename: banner2
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: banners
+
+  - apiId: categoryRanking
+    endpoint: /analytics/query/categoryRanking
+    method: POST
+    template: categoryRanking_query
+    dataProvider: dateRanges
+    modelId: categoryRanking
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: categoryRanking_create_job
+    queryTemplate: categoryRanking_query
+    optionsFilename: category1
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: categoryRanking
+
+  - apiId: ratingReviews
+    endpoint: /analytics/query/ratingReviews
+    method: POST
+    template: ratingReviews_query
+    dataProvider: dateRanges
+    modelId: ratingReviews
+    createJobEndpoint: /analytics/exports/create-job/
+    createJobTemplate: ratingReviews_create_job
+    queryTemplate: ratingReviews_query
+    optionsFilename: rating2
+    optionsFileFormat: csv
+    optionsFormat: csv
+    optionsModule: ratingReviews

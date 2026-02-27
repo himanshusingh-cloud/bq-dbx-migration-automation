@@ -168,12 +168,18 @@ public class UniversalJsonComparator {
     private static Object normalizeForComparison(Object obj) throws Exception {
         if (obj instanceof String) {
             String s = (String) obj;
-            if (s.startsWith("{") || s.startsWith("[")) {
-                JsonNode node = objectMapper.readTree(s);
-                if (node.isArray()) {
-                    return normalizeForComparison(objectMapper.convertValue(node, List.class));
+            if ((s.startsWith("{") || s.startsWith("[")) && s.length() > 1) {
+                try {
+                    JsonNode node = objectMapper.readTree(s);
+                    if (node.isArray()) {
+                        return normalizeForComparison(objectMapper.convertValue(node, List.class));
+                    }
+                    return objectMapper.convertValue(node, Map.class);
+                } catch (Exception e) {
+                    // Not valid JSON - e.g. productComments "content" field contains
+                    // "[This review was collected as part of a promotion.] ..." which is plain text
+                    return s;
                 }
-                return objectMapper.convertValue(node, Map.class);
             }
             return s;
         }

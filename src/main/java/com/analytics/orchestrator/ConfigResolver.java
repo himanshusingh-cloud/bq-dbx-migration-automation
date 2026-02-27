@@ -88,6 +88,26 @@ public class ConfigResolver {
             log.error("Failed to load promotion config", e);
             throw new RuntimeException("Failed to load promotion config", e);
         }
+        try (InputStream in = getClass().getResourceAsStream("/config/apis/rating-reviews-apis.yaml")) {
+            if (in != null) {
+                ApiDefinition def = yamlMapper.readValue(in, ApiDefinition.class);
+                apiGroups.put("ratingReviews", def);
+                log.info("Loaded API group 'ratingReviews' with {} APIs", def.getApis() != null ? def.getApis().size() : 0);
+            }
+        } catch (Exception e) {
+            log.error("Failed to load rating-reviews config", e);
+            throw new RuntimeException("Failed to load rating-reviews config", e);
+        }
+        try (InputStream in = getClass().getResourceAsStream("/config/apis/export-apis.yaml")) {
+            if (in != null) {
+                ApiDefinition def = yamlMapper.readValue(in, ApiDefinition.class);
+                apiGroups.put("export", def);
+                log.info("Loaded API group 'export' with {} APIs", def.getApis() != null ? def.getApis().size() : 0);
+            }
+        } catch (Exception e) {
+            log.error("Failed to load export config", e);
+            throw new RuntimeException("Failed to load export config", e);
+        }
     }
 
     public String getBaseUrl(String environment) {
@@ -107,7 +127,9 @@ public class ConfigResolver {
     public List<ApiDefinition.ApiSpec> resolveApis(String apiGroup, List<String> specificApis) {
         String key = "analytics".equalsIgnoreCase(apiGroup) ? "productContent"
                 : "pricing".equalsIgnoreCase(apiGroup) ? "pricing"
-                : "promotion".equalsIgnoreCase(apiGroup) ? "promotion" : apiGroup;
+                : "promotion".equalsIgnoreCase(apiGroup) ? "promotion"
+                : "rating&reviews".equalsIgnoreCase(apiGroup) || "ratingReviews".equalsIgnoreCase(apiGroup) ? "ratingReviews"
+                : "export".equalsIgnoreCase(apiGroup) ? "export" : apiGroup;
         ApiDefinition def = apiGroups.get(key);
         if (def == null) def = apiGroups.get(apiGroup);
         if (def == null) throw new IllegalArgumentException("Unknown API group: " + apiGroup);

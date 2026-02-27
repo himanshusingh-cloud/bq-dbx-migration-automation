@@ -53,6 +53,9 @@ public class DataProviderRegistry {
             case "searchProductHistory":
                 rows = searchProductHistoryRows(baseParams, taxonomy);
                 break;
+            case "feedbackProductComments":
+                rows = feedbackProductCommentsRows(baseParams, taxonomy);
+                break;
             default:
                 rows = Collections.singletonList(new HashMap<>(baseParams));
         }
@@ -68,7 +71,7 @@ public class DataProviderRegistry {
             m.put("start_date", DateUtils.daysAgo(offset));
             m.put("end_date", endDate);
             m.put("_label", "Last " + offset + " days");
-            if ("contentScores".equals(base.get("_apiId"))) {
+            if ("contentScores".equals(base.get("_apiId")) || "feedbackOverview".equals(base.get("_apiId")) || "retailerFeedback".equals(base.get("_apiId"))) {
                 String start = (String) m.get("start_date");
                 String end = (String) m.get("end_date");
                 m.put("delta_start_date", DateUtils.deltaStartDate(start, end));
@@ -192,5 +195,21 @@ public class DataProviderRegistry {
             rows.add(m);
         }
         return rows;
+    }
+
+    private List<Map<String, Object>> feedbackProductCommentsRows(Map<String, Object> base,
+                                                                  Map<String, List<String>> taxonomy) {
+        List<String> retailers = getTaxonomyList(taxonomy, "retailers");
+        String productId = base.containsKey("product_id") ? String.valueOf(base.get("product_id")) : "5680";
+        if (retailers.isEmpty()) {
+            Map<String, Object> m = new HashMap<>(base);
+            m.put("retailer", "Instacart-Publix-US");
+            m.put("product_id", productId);
+            return Collections.singletonList(m);
+        }
+        Map<String, Object> m = new HashMap<>(base);
+        m.put("retailer", retailers.get(0));
+        m.put("product_id", productId);
+        return Collections.singletonList(m);
     }
 }

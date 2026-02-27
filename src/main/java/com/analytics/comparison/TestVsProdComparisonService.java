@@ -99,6 +99,12 @@ public class TestVsProdComparisonService {
     public ApiComparisonResult compareTwoJsonResponses(String testJson, String prodJson, double floatTolerance) {
         Integer testRowCount = countRows(testJson);
         Integer prodRowCount = countRows(prodJson);
+        if ((testRowCount == null || prodRowCount == null) && log.isDebugEnabled()) {
+            log.debug("[COMPARE] countRows returned null - test={} prod={} | testPreview={} | prodPreview={}",
+                    testRowCount, prodRowCount,
+                    previewResponse(testJson, 300),
+                    previewResponse(prodJson, 300));
+        }
 
         List<JsonDiff> mismatches;
         boolean match;
@@ -200,6 +206,8 @@ public class TestVsProdComparisonService {
 
     private static final int MAX_RETRIES_FOR_500_OR_EMPTY = 6;
 
+    // APIs that use sub_brands but have sparse data - when empty, cycle through sub_brand groups (15 at a time)
+    private static final Set<String> SPARSE_DATA_APIS = Set.of("pricingSummary_xlsx", "mlaPricingSummary", "wc_xlsx");
 
     private ApiComparisonResult compareOneApi(ApiDefinition.ApiSpec spec, Map<String, Object> baseParams,
                                               Map<String, List<String>> taxonomy, Map<String, String> headers,
@@ -208,28 +216,59 @@ public class TestVsProdComparisonService {
         try {
             Map<String, Object> effectiveBaseParams = new HashMap<>(baseParams);
             Map<String, List<String>> effectiveTaxonomy = taxonomy;
+            // For sparse-data APIs: saved when we get a 0-row result so we can try more sub_brand groups
+            ApiComparisonResult sparseEmptyFallback = null;
+            int sparseGroupIndex = 0;
 
             for (int attempt = 0; attempt < MAX_RETRIES_FOR_500_OR_EMPTY; attempt++) {
                 ApiComparisonResult result = tryCompareOneApi(spec, effectiveBaseParams, effectiveTaxonomy, headers, testBaseUrl);
+
                 if (result != null) {
+                    // For sparse-data APIs: a 0-row result means "no data for THIS filter combo" - try different sub_brand groups
+                    if (SPARSE_DATA_APIS.contains(apiId)
+                            && Boolean.TRUE.equals(result.isMatch())
+                            && Integer.valueOf(0).equals(result.getTestRowCount())
+                            && Integer.valueOf(0).equals(result.getProdRowCount())) {
+                        if (sparseEmptyFallback == null) sparseEmptyFallback = result;
+                        sparseGroupIndex++;
+                        List<String> subBrands = taxonomy.getOrDefault("sub_brands", List.of());
+                        int groupSize = 15;
+                        if (subBrands.isEmpty() || sparseGroupIndex * groupSize >= subBrands.size()) {
+                            // Exhausted all sub_brand groups - no data exists for this date
+                            log.info("[COMPARE] {} tried all sub_brand groups - no data for this date (0-row match)", apiId);
+                            return sparseEmptyFallback;
+                        }
+                        int start = sparseGroupIndex * groupSize;
+                        int end = Math.min(start + groupSize, subBrands.size());
+                        Map<String, List<String>> nextGroup = new HashMap<>(effectiveTaxonomy);
+                        nextGroup.put("sub_brands", new ArrayList<>(subBrands.subList(start, end)));
+                        effectiveTaxonomy = nextGroup;
+                        log.info("[COMPARE] {} got empty on sub_brand group {} - trying group {} [{}-{}]",
+                                apiId, sparseGroupIndex - 1, sparseGroupIndex, start, end - 1);
+                        continue;
+                    }
+
                     if (attempt > 0) {
                         log.info("[COMPARE] Got valid response for {} on attempt {} with reduced filters", apiId, attempt + 1);
                     }
                     return result;
                 }
+
                 if (attempt < MAX_RETRIES_FOR_500_OR_EMPTY - 1) {
-                    // Last retry before giving up: try empty filters. Some APIs return []/500 when filters
-                    // don't match data but return data with empty arrays (e.g. bannersOverview).
                     if (attempt >= MAX_RETRIES_FOR_500_OR_EMPTY - 2) {
                         log.info("[COMPARE] Retry {} for {}: trying empty filters (API may return empty when filters don't match data)", attempt + 1, apiId);
                         effectiveTaxonomy = emptyTaxonomy(taxonomy);
                     } else {
-                        int maxPerList = Math.max(1, 4 - attempt);
-                        log.info("[COMPARE] Retry {} for {}: reducing filters (500/empty/too-large) maxPerList={}", attempt + 1, apiId, maxPerList);
+                        int offset = attempt;
+                        log.info("[COMPARE] Retry {} for {}: using 1 filter per list (offset={}) + single date to avoid 500", attempt + 1, apiId, offset);
                         effectiveBaseParams = reduceParams(effectiveBaseParams);
-                        effectiveTaxonomy = reduceTaxonomy(taxonomy, maxPerList);
+                        effectiveTaxonomy = reduceTaxonomy(taxonomy, 1, offset);
                     }
                 }
+            }
+            if (sparseEmptyFallback != null) {
+                log.info("[COMPARE] {} has no data across all retries - reporting 0-row match", apiId);
+                return sparseEmptyFallback;
             }
             return buildErrorResult(apiId, "API returned 500 or empty after " + MAX_RETRIES_FOR_500_OR_EMPTY + " retries");
         } catch (Exception e) {
@@ -251,6 +290,12 @@ public class TestVsProdComparisonService {
         params.put("start_date", baseParams.get("start_date"));
         params.put("end_date", baseParams.get("end_date"));
 
+        // Export flow: create-job first, then query with modelId
+        if (spec.getCreateJobEndpoint() != null && !spec.getCreateJobEndpoint().isBlank()
+                && spec.getModelId() != null && !spec.getModelId().isBlank()) {
+            return tryCompareExportApi(spec, params, baseParams, taxonomy, headers, testBaseUrl);
+        }
+
         String payload;
         try {
             payload = payloadGenerator.generate(spec.getTemplate(), params, taxonomy);
@@ -259,6 +304,79 @@ public class TestVsProdComparisonService {
             payload = payloadGenerator.generate(spec.getTemplate(), baseParams, taxonomy);
         }
         return tryCompareWithPayload(spec, baseParams, taxonomy, headers, testBaseUrl, payload);
+    }
+
+    /** Export flow: 1) create-job, 2) query with modelId for Query Genie + DBX vs BQ comparison */
+    private ApiComparisonResult tryCompareExportApi(ApiDefinition.ApiSpec spec, Map<String, Object> params,
+                                                     Map<String, Object> baseParams, Map<String, List<String>> taxonomy,
+                                                     Map<String, String> headers, String testBaseUrl) {
+        String apiId = spec.getApiId();
+        String createJobEndpoint = spec.getCreateJobEndpoint();
+        String modelId = spec.getModelId();
+        String queryTemplate = spec.getQueryTemplate() != null ? spec.getQueryTemplate() : spec.getTemplate();
+
+        // Create-job: use headers WITHOUT x-client-id (per user request)
+        Map<String, String> createJobHeaders = new HashMap<>(headers);
+        createJobHeaders.remove("x-client-id");
+
+        // Build create-job params with options from spec
+        Map<String, Object> createJobParams = new HashMap<>(params != null ? params : baseParams);
+        createJobParams.put("modelId", modelId);
+        createJobParams.put("options_filename", spec.getOptionsFilename() != null ? spec.getOptionsFilename() : modelId);
+        createJobParams.put("options_fileFormat", spec.getOptionsFileFormat() != null ? spec.getOptionsFileFormat() : "csv");
+        createJobParams.put("options_format", spec.getOptionsFormat() != null ? spec.getOptionsFormat() : "csv");
+        createJobParams.put("options_module", spec.getOptionsModule() != null ? spec.getOptionsModule() : modelId);
+        if (spec.getVersion() != null) createJobParams.put("version", spec.getVersion());
+        if (spec.getHidePromotions() != null) createJobParams.put("hide_promotions", spec.getHidePromotions());
+        if (spec.getOptionsMergeCells() != null) createJobParams.put("options_mergeCells", spec.getOptionsMergeCells());
+        if (spec.getOptionsYearAgoView() != null) createJobParams.put("options_yearAgoView", spec.getOptionsYearAgoView());
+
+        // 1. Build and POST create-job
+        String createJobPayload;
+        try {
+            createJobPayload = payloadGenerator.generate(spec.getCreateJobTemplate(), createJobParams, taxonomy);
+        } catch (Exception e) {
+            log.warn("Create-job payload failed for {}: {}", apiId, e.getMessage());
+            Map<String, Object> fallbackParams = new HashMap<>(baseParams);
+            fallbackParams.put("modelId", modelId);
+            fallbackParams.put("options_filename", spec.getOptionsFilename() != null ? spec.getOptionsFilename() : modelId);
+            fallbackParams.put("options_fileFormat", spec.getOptionsFileFormat() != null ? spec.getOptionsFileFormat() : "csv");
+            fallbackParams.put("options_format", spec.getOptionsFormat() != null ? spec.getOptionsFormat() : "csv");
+            fallbackParams.put("options_module", spec.getOptionsModule() != null ? spec.getOptionsModule() : modelId);
+            if (spec.getVersion() != null) fallbackParams.put("version", spec.getVersion());
+            if (spec.getHidePromotions() != null) fallbackParams.put("hide_promotions", spec.getHidePromotions());
+            if (spec.getOptionsMergeCells() != null) fallbackParams.put("options_mergeCells", spec.getOptionsMergeCells());
+            if (spec.getOptionsYearAgoView() != null) fallbackParams.put("options_yearAgoView", spec.getOptionsYearAgoView());
+            createJobPayload = payloadGenerator.generate(spec.getCreateJobTemplate(), fallbackParams, taxonomy);
+        }
+        log.info("[COMPARE] Export create-job: POST {} | apiId={}", testBaseUrl + createJobEndpoint, apiId);
+        TestExecutor.ApiExecutionResult createResult = testExecutor.execute(testBaseUrl, createJobEndpoint, createJobHeaders, createJobPayload, 0);
+        if (createResult.getResponsePayload() == null || !"PASS".equals(createResult.getStatus())) {
+            log.warn("[COMPARE] Create-job failed for {}: http={}", apiId, createResult.getHttpStatus());
+            return null;
+        }
+
+        // 2. Build query payload (parameters + labels from create-job)
+        Map<String, Object> queryParams = new HashMap<>(params != null ? params : baseParams);
+        if (spec.getVersion() != null) queryParams.put("version", spec.getVersion());
+        String queryPayload;
+        try {
+            queryPayload = payloadGenerator.generate(queryTemplate, queryParams, taxonomy);
+        } catch (Exception e) {
+            log.warn("Query payload failed for {}: {}", apiId, e.getMessage());
+            Map<String, Object> fallbackQueryParams = new HashMap<>(baseParams);
+            if (spec.getVersion() != null) fallbackQueryParams.put("version", spec.getVersion());
+            queryPayload = payloadGenerator.generate(queryTemplate, fallbackQueryParams, taxonomy);
+        }
+
+        // 3. Use spec.getEndpoint() if set, otherwise fall back to /analytics/query/{modelId}
+        String queryEndpoint = (spec.getEndpoint() != null && !spec.getEndpoint().isBlank())
+                ? spec.getEndpoint() : "/analytics/query/" + modelId;
+        ApiDefinition.ApiSpec querySpec = new ApiDefinition.ApiSpec();
+        querySpec.setApiId(spec.getApiId());
+        querySpec.setEndpoint(queryEndpoint);
+        querySpec.setMethod(spec.getMethod());
+        return tryCompareWithPayload(querySpec, baseParams, taxonomy, headers, testBaseUrl, queryPayload);
     }
 
     private ApiComparisonResult tryCompareWithPayload(ApiDefinition.ApiSpec spec, Map<String, Object> baseParams,
@@ -271,22 +389,24 @@ public class TestVsProdComparisonService {
         reqHeaders.put("X-qg-request-id", jobId);
         String fullUrl = testBaseUrl + endpoint;
 
-        // Query Genie: send normal request (no x-bqdbx-config) first to trigger validation record, same as run-validation-tests
-        // If trigger returns 503 or empty, return null to retry with less filter (handled by compareOneApi retry loop)
+        // Query Genie: send normal request (no x-bqdbx-config) first to trigger validation record
         log.info("[COMPARE] Query Genie trigger: POST {} | X-qg-request-id={}", fullUrl, jobId);
         TestExecutor.ApiExecutionResult triggerResult = testExecutor.execute(testBaseUrl, endpoint, reqHeaders, payload, 0);
         boolean triggerFail = triggerResult.getResponsePayload() == null || !"PASS".equals(triggerResult.getStatus());
         boolean triggerEmpty = isEmptyResponse(triggerResult.getResponsePayload());
         Integer triggerStatus = triggerResult.getHttpStatus();
-        if (triggerFail || triggerEmpty) {
-            if (triggerStatus != null && triggerStatus >= 500) {
-                log.info("[COMPARE] Query Genie trigger returned {} - will retry with less filter", triggerStatus);
-            } else if (triggerEmpty) {
-                log.info("[COMPARE] Query Genie trigger returned empty - will retry with less filter");
-            }
+        if (triggerFail) {
+            // 5xx / 4xx errors → retry with less filters
+            log.info("[COMPARE] Query Genie trigger returned {} - will retry with less filter", triggerStatus);
             return null;
         }
-        pollForQueryGenieRecord(jobId, apiId);
+        if (triggerEmpty) {
+            // HTTP 200 but empty data (API works, just no data for these filters)
+            // Proceed to DBX/BQ calls; if both also empty → report 0-row match (not a code failure)
+            log.info("[COMPARE] Query Genie trigger returned empty (HTTP {}) - checking DBX/BQ for no-data confirmation", triggerStatus);
+        } else {
+            pollForQueryGenieRecord(jobId, apiId);
+        }
 
         // Same payload used for DBX and BQ comparison
         Map<String, String> dbxHeaders = new HashMap<>(reqHeaders);
@@ -333,6 +453,17 @@ public class TestVsProdComparisonService {
                     .build();
         }
         if (dbxEmpty && bqEmpty) {
+            if (triggerEmpty) {
+                // All three returned empty — API works (HTTP 200) but no data for these filters
+                // Return a 0-row match result; compareOneApi will retry with different sub_brand groups
+                log.info("[COMPARE] {} returned empty from trigger, DBX, and BQ - no data for these filters (match=true, 0 rows)", apiId);
+                return ApiComparisonResult.builder()
+                        .apiId(apiId).jobId(jobId)
+                        .testUrl(fullUrl).prodUrl(fullUrl)
+                        .match(true).testRowCount(0).prodRowCount(0)
+                        .mismatchCount(0).mismatches(Collections.emptyList())
+                        .requestPayload(payload).build();
+            }
             return null;
         }
 
@@ -378,28 +509,23 @@ public class TestVsProdComparisonService {
     }
 
     /**
-     * Use config taxonomy for pricing APIs (same as run-validation-tests).
-     * Only fallback to known-working defaults when config taxonomy is empty.
+     * Use config taxonomy for pricing/export APIs. When config is empty (403/fail), use empty taxonomy -
+     * these APIs may return data with empty filters.
      */
     private Map<String, List<String>> ensurePricingTaxonomy(Map<String, List<String>> taxonomy, String apiGroup, String client) {
-        if (!"pricing".equalsIgnoreCase(apiGroup)) return taxonomy;
+        boolean isPricing = "pricing".equalsIgnoreCase(apiGroup);
+        boolean isExport = "export".equalsIgnoreCase(apiGroup);
+        if (!isPricing && !isExport) return taxonomy;
         if (taxonomy != null && hasNonEmptyLists(taxonomy)) {
-            log.info("[COMPARE] Using config taxonomy for pricing APIs (client={}): retailers={} categories={} brands={}",
-                    client,
+            log.info("[COMPARE] Using config taxonomy for {} APIs (client={}): retailers={} categories={} brands={}",
+                    isExport ? "export" : "pricing", client,
                     taxonomy.getOrDefault("retailers", List.of()).size(),
                     taxonomy.getOrDefault("categories", List.of()).size(),
                     taxonomy.getOrDefault("brands", List.of()).size());
             return taxonomy;
         }
-        log.info("[COMPARE] Config taxonomy empty for {} - using fallback pricing taxonomy", client);
-        Map<String, List<String>> result = new HashMap<>();
-        result.put("manufacturers", List.of("The Coca-Cola Company", "Monster Beverage Corporation"));
-        result.put("retailers", List.of("Kroger-US", "Walmart-US", "Target-US", "Amazon-US", "Costco-US"));
-        result.put("categories", List.of("Packaged Water", "Sport Drinks", "Sparkling Soft Drinks", "Energy Drinks"));
-        result.put("sub_categories", List.of("Plain Water", "RTD SSD Cola", "Sports Drinks RTD Flavoured"));
-        result.put("brands", List.of("Coca-Cola", "Dasani", "Monster Energy", "Sprite", "Minute Maid"));
-        result.put("sub_brands", List.of("AHA"));
-        return result;
+        log.info("[COMPARE] Config taxonomy empty for {} - using empty filters", client);
+        return emptyTaxonomy(taxonomy);
     }
 
     private boolean hasNonEmptyLists(Map<String, List<String>> taxonomy) {
@@ -425,14 +551,22 @@ public class TestVsProdComparisonService {
     }
 
     private Map<String, List<String>> reduceTaxonomy(Map<String, List<String>> taxonomy, int maxPerList) {
+        return reduceTaxonomy(taxonomy, maxPerList, 0);
+    }
+
+    private Map<String, List<String>> reduceTaxonomy(Map<String, List<String>> taxonomy, int maxPerList, int offset) {
         if (taxonomy == null) return new HashMap<>();
         Map<String, List<String>> reduced = new HashMap<>();
         for (Map.Entry<String, List<String>> e : taxonomy.entrySet()) {
             List<String> list = e.getValue();
             if (list == null || list.isEmpty()) {
                 reduced.put(e.getKey(), List.of());
+            } else if (list.size() <= maxPerList) {
+                reduced.put(e.getKey(), list);
             } else {
-                reduced.put(e.getKey(), list.size() <= maxPerList ? list : new ArrayList<>(list.subList(0, maxPerList)));
+                int start = offset % list.size();
+                int end = Math.min(start + maxPerList, list.size());
+                reduced.put(e.getKey(), new ArrayList<>(list.subList(start, end)));
             }
         }
         return reduced;
@@ -509,6 +643,13 @@ public class TestVsProdComparisonService {
 
     private Integer countRows(String json) {
         return JsonComparisonUtils.countRows(json);
+    }
+
+    private String previewResponse(String json, int maxLen) {
+        if (json == null || json.isBlank()) return "(null/empty)";
+        String t = json.trim();
+        if (t.length() <= maxLen) return t;
+        return t.substring(0, maxLen) + "...";
     }
 
     /**

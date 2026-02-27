@@ -1,0 +1,1 @@
+{"parameters":{"client_id":"{{client_id}}","retailer":[],"categories":[],"brands":[],"start_date":"{{start_date}}","end_date":"{{end_date}}"},"labels":{"source":"core-service","client_id":"{{client_id}}","user_id":"unified-user"}}

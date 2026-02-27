@@ -1,0 +1,32 @@
+apiGroup: ratingReviews
+apis:
+  - apiId: feedbackOverview
+    endpoint: /analytics/query/feedbackOverview
+    method: POST
+    template: feedbackOverview
+    dataProvider: dateRanges
+  - apiId: retailerFeedback
+    endpoint: /analytics/query/retailerFeedback
+    method: POST
+    template: retailerFeedback
+    dataProvider: dateRanges
+  - apiId: retailerReviews
+    endpoint: /analytics/query/retailerReviews
+    method: POST
+    template: retailerReviews
+    dataProvider: dateRanges
+  - apiId: productComments
+    endpoint: /analytics/query/productComments
+    method: POST
+    template: productComments
+    dataProvider: feedbackProductComments
+  - apiId: productReviews
+    endpoint: /analytics/query/productReviews
+    method: POST
+    template: productReviews
+    dataProvider: dateRanges
+  - apiId: ratingTrend
+    endpoint: /analytics/query/ratingTrend
+    method: POST
+    template: ratingTrend
+    dataProvider: dateRanges

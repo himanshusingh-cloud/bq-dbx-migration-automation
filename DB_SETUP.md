@@ -132,6 +132,24 @@ WHERE c.suite_id = 'YOUR_SUITE_ID'
 ORDER BY c.id;
 ```
 
+## Pricing APIs – Direct curl (when empty/500)
+
+When pricing APIs return empty or 500, use **empty filters** – they return data for cocacola-us, kellanova-us:
+
+```bash
+# priceAlerts with empty filters (works when config returns 403)
+curl -X POST 'https://test.ef.uk.com/analytics/query/priceAlerts' \
+  -H 'x-auth-bypass-token: ciq-internal-bypass-api-key-a16e0586bf29' \
+  -H 'x-client-id: kellanova-us' \
+  -H 'Content-Type: application/json' \
+  -H 'x-user-email: user2@test.com' \
+  -d '{"parameters":{"client_id":"kellanova-us","manufacturers":[],"retailers":[],"categories":[],"sub_categories":[],"brands":[],"start_date":"2026-01-20","end_date":"2026-01-28","search":"","sku_groups":[]},"labels":{"source":"core-service","client_id":"kellanova-us","user_id":"unified-user"}}'
+```
+
+For cocacola-us, replace `kellanova-us` with `cocacola-us` in the payload and headers. Use valid dates (e.g. `2026-01-20` to `2026-01-28` – avoid `2026-02-31`; Feb has 28 days).
+
+---
+
 ## Troubleshooting
 
 **If you get "Value too long for column" or "Column length too big":** Use MySQL (not H2) for json-comparison:

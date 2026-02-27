@@ -58,6 +58,16 @@ public class ValidationService {
             "promotionsInsights", "promotionsInsightsDetail", "promotionalCalendar", "bannersOverview"
     );
 
+    public static final List<String> RATING_REVIEWS_APIS = Arrays.asList(
+            "feedbackOverview", "retailerFeedback", "retailerReviews", "productComments", "productReviews", "ratingTrend"
+    );
+
+    public static final List<String> EXPORT_APIS = Arrays.asList(
+            "ftb_xlsx", "ftb", "productTests", "pricingSummary_xlsx", "pricingSummary",
+            "mlaPricingSummary", "wc_xlsx", "searchRanking", "availability", "ratingReviewsSummary",
+            "banners", "categoryRanking", "ratingReviews"
+    );
+
     /** JSON API for validation detail - X-qg-request-id (UUID) is jobId. HTML UI is at /alert-validation-detail/ */
     private static final String VALIDATION_DETAIL_PATH = "/api/alerts/validation/detail/";
 
@@ -132,14 +142,18 @@ public class ValidationService {
         List<String> allowedApis = "multiLocation2.0".equalsIgnoreCase(apiGroup) ? MULTI_LOCATION_APIS
                 : "search".equalsIgnoreCase(apiGroup) ? SEARCH_APIS
                 : "pricing".equalsIgnoreCase(apiGroup) ? PRICING_APIS
-                : "promotion".equalsIgnoreCase(apiGroup) ? PROMOTION_APIS : PRODUCT_CONTENT_APIS;
+                : "promotion".equalsIgnoreCase(apiGroup) ? PROMOTION_APIS
+                : "rating&reviews".equalsIgnoreCase(apiGroup) || "ratingReviews".equalsIgnoreCase(apiGroup) ? RATING_REVIEWS_APIS
+                : "export".equalsIgnoreCase(apiGroup) ? EXPORT_APIS : PRODUCT_CONTENT_APIS;
         List<String> apisToRun = (apis != null && !apis.isEmpty()) ? apis : allowedApis;
         apisToRun = apisToRun.stream().filter(allowedApis::contains).collect(Collectors.toList());
 
         String configGroup = "analytics".equalsIgnoreCase(apiGroup) ? "productContent"
                 : "search".equalsIgnoreCase(apiGroup) ? "search"
                 : "pricing".equalsIgnoreCase(apiGroup) ? "pricing"
-                : "promotion".equalsIgnoreCase(apiGroup) ? "promotion" : apiGroup;
+                : "promotion".equalsIgnoreCase(apiGroup) ? "promotion"
+                : "rating&reviews".equalsIgnoreCase(apiGroup) || "ratingReviews".equalsIgnoreCase(apiGroup) ? "ratingReviews"
+                : "export".equalsIgnoreCase(apiGroup) ? "export" : apiGroup;
         UserInputDetail userInput = UserInputDetail.builder()
                 .suiteId(suiteId)
                 .client(client)
