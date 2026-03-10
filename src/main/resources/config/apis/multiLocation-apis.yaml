@@ -80,3 +80,8 @@ apis:
     method: POST
     template: prolongedOOSDetail
     dataProvider: multiLocation
+  - apiId: sameDayOOS
+    endpoint: /analytics/query/sameDayOOS
+    method: POST
+    template: sameDayOOS
+    dataProvider: multiLocation

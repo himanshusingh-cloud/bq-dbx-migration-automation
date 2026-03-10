@@ -4,205 +4,446 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>JSON Comparison Report</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-dark: #0f1419;
-            --bg-card: #1a2332;
-            --bg-card-hover: #243044;
-            --accent: #00d4aa;
-            --prod: #ff6b6b;
-            --test: #4dabf7;
-            --pass: #51cf66;
-            --text: #e6edf3;
-            --text-muted: #8b949e;
-            --border: #30363d;
+            --bg:      #0d1117;
+            --card:    #161b22;
+            --card-hv: #1c2333;
+            --border:  #30363d;
+            --accent:  #00d4aa;
+            --pass:    #3fb950;
+            --warn:    #e3b341;
+            --danger:  #f85149;
+            --empty:   #a78bfa;
+            --info:    #58a6ff;
+            --muted:   #8b949e;
+            --text:    #e6edf3;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg-dark);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 2rem;
-        }
-        .container { max-width: 1400px; margin: 0 auto; }
-        h1 { font-size: 1.75rem; margin-bottom: 0.5rem; color: var(--accent); }
-        .subtitle { font-size: 0.9rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 1rem; }
-        .meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
-        .meta-item {
-            background: var(--bg-card);
-            padding: 0.6rem 1rem;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            font-size: 0.85rem;
-        }
-        .meta-item strong { color: var(--accent); margin-right: 0.5rem; }
-        .status-badge { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
-        .status-badge.completed { background: rgba(81,207,102,0.2); color: var(--pass); }
-        .status-badge.in-progress { background: rgba(255,212,59,0.2); color: #ffd43b; }
-        .api-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-        }
-        .api-section.clickable { cursor: pointer; transition: background 0.2s; }
-        .api-section.clickable:hover { background: var(--bg-card-hover); }
-        .api-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-        .api-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 1rem; color: var(--accent); }
-        .api-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .badge { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
-        .badge.match { background: rgba(81,207,102,0.2); color: var(--pass); }
-        .badge.mismatch { background: rgba(255,107,107,0.2); color: var(--prod); }
-        .api-links { font-size: 0.8rem; margin-top: 0.5rem; }
-        .api-links a { color: var(--accent); margin-right: 1rem; }
-        .mismatch-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-            margin-top: 1rem;
-        }
-        .mismatch-table th, .mismatch-table td {
-            padding: 0.5rem 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-        .mismatch-table th { color: var(--text-muted); font-weight: 600; }
-        .mismatch-table .path { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
-        .mismatch-table .prod-val { background: rgba(255,107,107,0.15); color: var(--prod); padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all; }
-        .mismatch-table .test-val { background: rgba(77,171,247,0.15); color: var(--test); padding: 0.25rem 0.5rem; border-radius: 4px; word-break: break-all; }
-        .empty { color: var(--text-muted); font-style: italic; padding: 0.5rem 0; }
-        .refresh-info { font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; }
-        .btn-back { color: var(--accent); text-decoration: none; font-size: 0.9rem; margin-bottom: 1rem; display: inline-block; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 2.5rem; font-size: 15px; line-height: 1.5; }
+        .container { max-width: 1300px; margin: 0 auto; }
+
+        /* ── Header ── */
+        .btn-back { color: var(--accent); text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 1.25rem; opacity: 0.8; }
+        .btn-back:hover { opacity: 1; }
+        h1 { font-size: 1.9rem; font-weight: 700; color: var(--accent); margin-bottom: 0.3rem; }
+        .subtitle { font-size: 0.82rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 1.5rem; }
+
+        /* ── Meta strip ── */
+        .meta { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-bottom: 1.75rem; }
+        .meta-pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; }
+        .meta-pill strong { color: var(--accent); }
+        .status-badge { padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em; }
+        .status-badge.completed   { background: rgba(63,185,80,.18); color: var(--pass);   border: 1px solid rgba(63,185,80,.3); }
+        .status-badge.in-progress { background: rgba(227,179,65,.18); color: var(--warn);  border: 1px solid rgba(227,179,65,.3); }
+        .status-badge.failed      { background: rgba(248,81,73,.18);  color: var(--danger); border: 1px solid rgba(248,81,73,.3); }
+
+        /* ── Score cards ── */
+        .scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+        .sc { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.3rem 1rem 1rem; text-align: center; transition: transform .15s; }
+        .sc:hover { transform: translateY(-2px); }
+        .sc .num { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+        .sc .lbl { font-size: 0.72rem; color: var(--muted); margin-top: 0.45rem; text-transform: uppercase; letter-spacing: 0.08em; }
+        .sc.pass { border-color: rgba(63,185,80,.35);  } .sc.pass .num { color: var(--pass);   }
+        .sc.mis  { border-color: rgba(248,81,73,.35);  } .sc.mis  .num { color: var(--danger); }
+        .sc.emp  { border-color: rgba(167,139,250,.35);} .sc.emp  .num { color: var(--empty);  }
+        .sc.fail { border-color: rgba(248,81,73,.45);  } .sc.fail .num { color: var(--danger); }
+        .sc.prog { border-color: rgba(227,179,65,.35); } .sc.prog .num { color: var(--warn);   }
+
+        /* ── Section heading ── */
+        .sec-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0; margin-top: 2.2rem; margin-bottom: 0.8rem; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+        .sec-hdr h2 { font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+        .sec-count { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
+        .sec-toggle { font-size: 0.95rem; color: var(--muted); }
+        .sec-body.collapsed { display: none; }
+
+        /* ── Accordion API card ── */
+        .api-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 0.65rem; overflow: hidden; }
+        .card-slab { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.9rem 1.2rem; cursor: pointer; transition: background .15s; user-select: none; }
+        .card-slab:hover { background: var(--card-hv); }
+        .api-id { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 600; color: var(--accent); }
+        .slab-toggle { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
+        .card-body { display: none; padding: 0 1.2rem 1rem; border-top: 1px solid var(--border); }
+        .card-body.open { display: block; }
+
+        /* ── Chips ── */
+        .chip { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 5px; font-size: 0.75rem; font-weight: 500; }
+        .chip.pass    { background: rgba(63,185,80,.18);   color: var(--pass);   border: 1px solid rgba(63,185,80,.3); }
+        .chip.mis     { background: rgba(248,81,73,.18);   color: var(--danger); border: 1px solid rgba(248,81,73,.3); }
+        .chip.emp     { background: rgba(167,139,250,.18); color: var(--empty);  border: 1px solid rgba(167,139,250,.3); }
+        .chip.fail    { background: rgba(248,81,73,.22);   color: var(--danger); border: 1px solid rgba(248,81,73,.4); }
+        .chip.neutral { background: rgba(139,148,158,.15); color: var(--muted);  border: 1px solid rgba(139,148,158,.25); }
+        .chip.prog    { background: rgba(227,179,65,.15);  color: var(--warn);   border: 1px solid rgba(227,179,65,.3); }
+
+        /* ── Links inside card body ── */
+        .body-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; margin-top: 0.75rem; margin-bottom: 0.2rem; font-size: 0.85rem; }
+        .body-links a { color: var(--accent); text-decoration: none; }
+        .body-links a:hover { text-decoration: underline; }
+
+        /* ── Error / Empty message bars ── */
+        .msg-bar { font-size: 0.84rem; padding: 0.55rem 0.85rem; border-radius: 6px; margin-top: 0.75rem; border-left: 3px solid; line-height: 1.55; word-break: break-word; }
+        .msg-bar.danger { background: rgba(248,81,73,.08); color: #fca5a5; border-color: var(--danger); }
+        .msg-bar.emp    { background: rgba(167,139,250,.08); color: #c4b5fd; border-color: var(--empty); }
+
+        /* DBX/BQ status breakdown */
+        .steps-breakdown { margin-top: 0.75rem; }
+        .step-badge { font-size: 0.72rem; font-weight: 700; background: rgba(255,255,255,0.08); border-radius: 4px; padding: 1px 6px; color: var(--muted); white-space: nowrap; }
+        .src-row { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.84rem; margin-top: 0.5rem; flex-wrap: wrap; }
+        .src-lbl { font-family: 'JetBrains Mono', monospace; font-weight: 600; min-width: 3.2rem; }
+        .src-ok   { color: var(--pass); }
+        .src-fail { color: var(--danger); word-break: break-word; }
+
+        /* ── Curl action buttons ── */
+        .action-btns { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; }
+        .act-btn { padding: 0.38rem 0.9rem; border-radius: 6px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border: 1px solid; font-family: 'Outfit', sans-serif; background: transparent; transition: background .15s; }
+        .act-btn.dbx { color: var(--info);   border-color: rgba(88,166,255,.4); }
+        .act-btn.dbx:hover { background: rgba(88,166,255,.12); }
+        .act-btn.bq  { color: var(--accent); border-color: rgba(0,212,170,.4); }
+        .act-btn.bq:hover  { background: rgba(0,212,170,.1); }
+        .act-btn.qg  { color: var(--warn);   border-color: rgba(227,179,65,.4); }
+        .act-btn.qg:hover  { background: rgba(227,179,65,.1); }
+
+        /* ── Curl panel ── */
+        .curl-panel { display: none; margin-top: 0.65rem; }
+        .curl-panel.open { display: block; }
+        .curl-lbl { font-size: 0.72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.32rem; }
+        .curl-box { background: #0d1117; border: 1px solid var(--border); border-radius: 7px; padding: 0.75rem 2.8rem 0.75rem 0.9rem; font-family: 'JetBrains Mono', monospace; font-size: 0.71rem; color: var(--info); word-break: break-all; white-space: pre-wrap; position: relative; max-height: 230px; overflow-y: auto; }
+        .copy-btn { position: absolute; top: 0.45rem; right: 0.5rem; background: rgba(0,212,170,.12); border: 1px solid rgba(0,212,170,.3); color: var(--accent); font-size: 0.7rem; padding: 0.2rem 0.55rem; border-radius: 4px; cursor: pointer; font-family: inherit; }
+        .copy-btn:hover { background: rgba(0,212,170,.28); }
+
+        /* ── In Progress ── */
+        .prog-card { background: rgba(227,179,65,.06); border: 1px solid rgba(227,179,65,.25); border-radius: 10px; padding: 0.9rem 1.2rem; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.9rem; }
+        .spinner { width: 18px; height: 18px; border: 2px solid rgba(227,179,65,.3); border-top-color: var(--warn); border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .prog-name { font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; color: var(--warn); font-weight: 600; }
+        .prog-sub  { font-size: 0.78rem; color: var(--muted); margin-top: 0.18rem; }
+
+        /* ── Misc ── */
+        .empty-state { color: var(--muted); font-size: 0.88rem; font-style: italic; padding: 0.6rem 0; }
+        .note-text   { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
+        .refresh-note { font-size: 0.75rem; color: var(--muted); margin-top: 1.75rem; text-align: right; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/" class="btn-back">&larr; Back</a>
-        <h1>JSON Comparison Report</h1>
-        <p class="subtitle">Suite ID: <span id="suiteIdDisplay">-</span></p>
-        <div id="content">
-            <div class="refresh-info">Loading...</div>
-        </div>
-    </div>
-    <script>
-        var suiteId = window.location.pathname.split('/').filter(Boolean).pop() || '';
-        document.getElementById('suiteIdDisplay').textContent = suiteId || '(none)';
-        var pollInterval = 3000;
+<div class="container">
+    <a href="/" class="btn-back">&#8592; Back</a>
+    <h1>JSON Comparison Report</h1>
+    <p class="subtitle">Suite ID: <span id="suiteIdDisplay">—</span></p>
+    <div id="content"><div class="empty-state">Loading&hellip;</div></div>
+</div>
 
-        async function fetchReport() {
-            if (!suiteId) {
-                document.getElementById('content').innerHTML = '<div class="empty">No suite ID in URL. Use /json-comparison-report/{suiteId}</div>';
-                return;
-            }
-            try {
-                var r = await fetch('/api/json-comparison/' + suiteId);
-                if (!r.ok) throw new Error(r.statusText);
-                var data = await r.json();
-                render(data);
-                if ((data.suiteStatus || '').toLowerCase() === 'completed') {
-                    clearInterval(pollTimer);
-                    pollTimer = null;
-                }
-            } catch (e) {
-                document.getElementById('content').innerHTML = '<div class="empty">Failed to load: ' + e.message + '</div>';
-            }
-        }
+<script>
+var suiteId = window.location.pathname.split('/').filter(Boolean).pop() || '';
+document.getElementById('suiteIdDisplay').textContent = suiteId || '(none)';
+var pollInterval = 3000, pollTimer = null;
+var openCards = {}, collapsedSecs = {};
 
-        function render(data) {
-            var status = (data.suiteStatus || '').toLowerCase();
-            var statusClass = status.indexOf('progress') >= 0 ? 'in-progress' : 'completed';
-            var html = '<div class="meta">';
-            html += '<div class="meta-item"><strong>Client</strong>' + (data.client || '-') + '</div>';
-            html += '<div class="meta-item"><strong>Dates</strong>' + (data.startDate || '') + ' to ' + (data.endDate || '') + '</div>';
-            html += '<div class="meta-item"><strong>API Group</strong>' + (data.apiGroup || '-') + '</div>';
-            html += '<div class="meta-item"><span class="status-badge ' + statusClass + '">' + (data.suiteStatus || 'Unknown') + '</span></div>';
-            html += '</div>';
+/* ─── fetch ─── */
+async function fetchReport() {
+    if (!suiteId) { document.getElementById('content').innerHTML = '<div class="empty-state">No suite ID in URL.</div>'; return; }
+    try {
+        var res = await fetch('/api/json-comparison/' + suiteId);
+        if (!res.ok) throw new Error(res.statusText);
+        var data = await res.json();
+        var st = (data.suiteStatus || '').toUpperCase();
+        if (st === 'COMPLETED' || st === 'FAILED') { clearInterval(pollTimer); pollTimer = null; }
+        render(data);
+    } catch(e) {
+        document.getElementById('content').innerHTML = '<div class="empty-state">Failed to load: ' + e.message + '</div>';
+    }
+}
 
-            var results = data.results || [];
-            for (var i = 0; i < results.length; i++) {
-                var r = results[i];
-                var apiId = (r.apiId || '').replace(/[^a-zA-Z0-9_-]/g, '-');
-                var clickable = r.status === 'completed' && r.mismatchReportURL;
-                var sectionClass = 'api-section' + (clickable ? ' clickable' : '');
-                html += '<div class="' + sectionClass + '" id="api-' + apiId + '"' + (clickable ? ' data-mismatch-url="' + escapeHtml(r.mismatchReportURL) + '"' : '') + '>';
-                html += '<div class="api-header">';
-                html += '<div><span class="api-name">' + (r.apiId || '') + '</span>';
-                html += '<div class="api-badges">';
-                if (r.status === 'in_progress') {
-                    html += '<span class="badge" style="background:rgba(255,212,59,0.2);color:#ffd43b">In Progress</span>';
-                } else {
-                    html += '<span class="badge ' + (r.match ? 'match' : 'mismatch') + '">' + (r.match ? 'Match' : 'Mismatch') + '</span>';
-                    html += '<span class="badge">DBX: ' + (r.testRowCount != null ? r.testRowCount : '-') + ' rows</span>';
-                    html += '<span class="badge">BQ: ' + (r.prodRowCount != null ? r.prodRowCount : '-') + ' rows</span>';
-                    html += '<span class="badge">rowCount: ' + (r.rowCountStatus || '-') + '</span>';
-                    if (r.testStatus) html += '<span class="badge ' + (r.testStatus === 'pass' ? 'match' : 'mismatch') + '">' + r.testStatus + '</span>';
-                    if (r.diffCount != null && r.diffCount > 0) html += '<span class="badge mismatch">diffCount: ' + r.diffCount + '</span>';
-                    if (r.jobId) html += '<span class="badge">jobId: ' + r.jobId + '</span>';
-                }
-                html += '</div></div></div>';
-                if (r.status === 'completed') {
-                    html += '<div class="api-links">';
-                    if (r.mismatchReportURL) {
-                        html += '<a href="' + escapeHtml(r.mismatchReportURL) + '">View full diff report</a>';
-                    }
-                    if (r.queryGenieUrl) {
-                        html += (r.mismatchReportURL ? ' | ' : '') + '<a href="' + escapeHtml(r.queryGenieUrl) + '" target="_blank">Query Genie</a>';
-                    }
-                    html += '</div>';
-                }
-                if (r.status === 'in_progress') {
-                    html += '<div class="empty">Running comparison...</div>';
-                }
-                html += '</div>';
-            }
+/* ─── render ─── */
+function render(data) {
+    var status = (data.suiteStatus || '').toLowerCase();
+    var statusClass = status.includes('progress') ? 'in-progress' : status === 'failed' ? 'failed' : 'completed';
+    var s = data.summary || {};
+    var results = data.results || [];
+    var inProg  = results.filter(r => r.status === 'in_progress');
+    var resultMap = {};
+    results.forEach(r => { resultMap[r.apiId] = r; });
 
-            if (results.length === 0 && status === 'in_progress') {
-                html += '<div class="empty">Running comparison... results will appear shortly.</div>';
-            } else if (results.length === 0) {
-                html += '<div class="empty">No results yet.</div>';
-            }
+    var passed   = s.passed    || [];
+    var mismatch = s.mismatch  || [];
+    var emptyB   = s.emptyBoth || [];
+    var failed   = s.failed    || [];
 
-            html += '<div class="refresh-info">' + (status === 'completed' ? 'Completed' : 'Auto-refreshes every ' + (pollInterval/1000) + 's') + '</div>';
-            document.getElementById('content').innerHTML = html;
-            scrollToHash();
-        }
+    var html = '';
 
-        function escapeHtml(s) {
-            var div = document.createElement('div');
-            div.textContent = s;
-            return div.innerHTML;
-        }
+    /* Meta */
+    html += '<div class="meta">';
+    html += mpill('Client', data.client || '—');
+    html += mpill('Dates', (data.startDate||'') + ' → ' + (data.endDate||''));
+    html += mpill('API Group', data.apiGroup || '—');
+    html += '<div class="meta-pill"><span class="status-badge ' + statusClass + '">' + esc(data.suiteStatus||'UNKNOWN') + '</span></div>';
+    html += '</div>';
 
-        function scrollToHash() {
-            var hash = window.location.hash;
-            if (hash && hash.startsWith('#api-')) {
-                var el = document.querySelector(hash);
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
+    /* Scores */
+    html += '<div class="scores">';
+    html += sc(passed.length, 'Passed', 'pass');
+    html += sc(mismatch.length, 'Mismatch', 'mis');
+    html += sc(emptyB.length, 'Empty Both', 'emp');
+    html += sc(failed.length, 'Failed', 'fail');
+    if (inProg.length) html += sc(inProg.length, 'In Progress', 'prog');
+    html += '</div>';
 
-        document.getElementById('content').addEventListener('click', function(e) {
-            if (e.target.closest('a')) return;
-            var section = e.target.closest('.api-section.clickable');
-            if (section) {
-                var url = section.getAttribute('data-mismatch-url');
-                if (url) window.location.href = url;
-            }
+    /* ── In Progress ── */
+    if (inProg.length) {
+        html += secHdr('prog', '⏳ In Progress', inProg.length, 'warn');
+        html += '<div class="sec-body" id="body-prog">';
+        inProg.forEach(r => {
+            html += '<div class="prog-card"><div class="spinner"></div><div>'
+                  + '<div class="prog-name">' + esc(r.apiId) + '</div>'
+                  + '<div class="prog-sub">Running DBX vs BQ comparison&hellip;</div>'
+                  + '</div></div>';
         });
+        html += '</div>';
+    }
 
-        var pollTimer = setInterval(fetchReport, pollInterval);
-        fetchReport();
-        window.addEventListener('hashchange', scrollToHash);
-    </script>
+    /* ── Passed ── */
+    html += secHdr('passed', '✅ Passed', passed.length, 'pass');
+    html += '<div class="sec-body" id="body-passed">';
+    if (!passed.length) { html += '<div class="empty-state">No APIs passed yet.</div>'; }
+    else {
+        passed.forEach(name => {
+            var r = resultMap[name] || {};
+            var cid = 'pass-' + safeid(name);
+            html += apiCard(cid, name,
+                '<span class="chip pass">Pass</span>'
+                + chip('neutral', 'DBX: ' + (r.testRowCount ?? '—') + ' rows')
+                + chip('neutral', 'BQ: '  + (r.prodRowCount ?? '—') + ' rows')
+                + chip('neutral', 'rowCount: matching'),
+                buildPassBody(r));
+        });
+    }
+    html += '</div>';
+
+    /* ── Mismatch ── */
+    html += secHdr('mismatch', '⚠️ Mismatch', mismatch.length, 'mis');
+    html += '<div class="sec-body" id="body-mismatch">';
+    if (!mismatch.length) { html += '<div class="empty-state">No mismatches.</div>'; }
+    else {
+        mismatch.forEach(m => {
+            var cid = 'mis-' + safeid(m.apiId);
+            html += apiCard(cid, m.apiId,
+                '<span class="chip mis">Mismatch</span>'
+                + chip('neutral', 'DBX: ' + (m.testRowCount ?? '—') + ' rows')
+                + chip('neutral', 'BQ: '  + (m.prodRowCount ?? '—') + ' rows')
+                + chip(m.rowCountStatus === 'matching' ? 'pass' : 'mis', 'rowCount: ' + esc(m.rowCountStatus||'—'))
+                + (m.diffCount ? chip('mis', 'diffCount: ' + m.diffCount) : ''),
+                buildMismatchBody(m));
+        });
+    }
+    html += '</div>';
+
+    /* ── Empty Both ── */
+    html += secHdr('empty', '📭 Empty Response — Both DBX & BQ', emptyB.length, 'emp');
+    html += '<div class="sec-body" id="body-empty">';
+    if (!emptyB.length) { html += '<div class="empty-state">No empty-response APIs.</div>'; }
+    else {
+        emptyB.forEach(e => {
+            var cid = 'emp-' + safeid(e.apiId);
+            html += apiCard(cid, e.apiId,
+                '<span class="chip emp">Empty Both</span>',
+                buildEmptyBody(e));
+        });
+    }
+    html += '</div>';
+
+    /* ── Failed ── */
+    html += secHdr('failed', '❌ Failed APIs', failed.length, 'fail');
+    html += '<div class="sec-body" id="body-failed">';
+    if (!failed.length) { html += '<div class="empty-state">No failed APIs.</div>'; }
+    else {
+        failed.forEach(f => {
+            var cid = 'fail-' + safeid(f.apiId);
+            html += apiCard(cid, f.apiId,
+                '<span class="chip fail">Failed</span>',
+                buildFailBody(f));
+        });
+    }
+    html += '</div>';
+
+    var isDone = (data.suiteStatus||'').toUpperCase() === 'COMPLETED' || (data.suiteStatus||'').toUpperCase() === 'FAILED';
+    html += '<div class="refresh-note">' + (isDone ? '✓ Suite ' + esc(data.suiteStatus) + ' — auto-refresh stopped' : '&#8635; Auto-refreshes every ' + (pollInterval/1000) + 's') + '</div>';
+    document.getElementById('content').innerHTML = html;
+
+    // Restore open/collapsed state
+    Object.keys(collapsedSecs).forEach(id => {
+        if (collapsedSecs[id]) {
+            var b = document.getElementById('body-' + id);
+            var t = document.getElementById('tgl-' + id);
+            if (b) b.classList.add('collapsed');
+            if (t) t.textContent = '▸';
+        }
+    });
+    Object.keys(openCards).forEach(id => {
+        if (openCards[id]) {
+            var b = document.getElementById('cbody-' + id);
+            var t = document.getElementById('ctgl-' + id);
+            if (b) b.classList.add('open');
+            if (t) t.textContent = '▴';
+        }
+    });
+    scrollToHash();
+}
+
+/* ── Card body builders ── */
+function buildPassBody(r) {
+    var h = '<div class="body-links">';
+    if (r.mismatchReportURL) h += '<a href="' + esc(r.mismatchReportURL) + '">📄 View Diff Report</a>';
+    if (r.queryGenieUrl)     h += '<a href="' + esc(r.queryGenieUrl) + '" target="_blank">🔍 Query Genie</a>';
+    h += '</div>';
+    return h;
+}
+function buildMismatchBody(m) {
+    var h = '<div class="body-links">';
+    if (m.mismatchReportURL) h += '<a href="' + esc(m.mismatchReportURL) + '">📄 View Full Diff Report</a>';
+    if (m.queryGenieUrl)     h += '<a href="' + esc(m.queryGenieUrl) + '" target="_blank">🔍 Query Genie</a>';
+    h += '</div>';
+    return h;
+}
+function buildEmptyBody(e) {
+    var h = '<div class="msg-bar emp">Both DBX and BQ returned empty response (0 rows) — no data for this date / filters.</div>';
+    var hasCurl = e.dbxCurl || e.bqCurl;
+    var hasQg   = e.queryGenieUrl;
+    if (hasCurl || hasQg) {
+        h += '<div class="action-btns">';
+        if (e.dbxCurl) h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(e.apiId) + '-dbx\',this)">Test DBX CURL ▾</button>';
+        if (e.bqCurl)  h += '<button class="act-btn bq"  onclick="toggleCurl(\'' + safeid(e.apiId) + '-bq\',this)">Test BQ CURL ▾</button>';
+        if (hasQg)     h += '<a href="' + esc(e.queryGenieUrl) + '" target="_blank" class="act-btn qg">🔍 Query Genie</a>';
+        h += '</div>';
+        if (e.dbxCurl) h += curlPanelHtml(safeid(e.apiId) + '-dbx', 'DBX_ONLY CURL', e.dbxCurl);
+        if (e.bqCurl)  h += curlPanelHtml(safeid(e.apiId) + '-bq',  'BQ_ONLY CURL',  e.bqCurl);
+    }
+    return h;
+}
+function parseFailStep(part) {
+    // "DBX HTTP 200 (OK)" or "BQ HTTP 500: ..." (old format, no colon after label)
+    var m = part.match(/^(DBX|BQ)\s+(HTTP\s+\d+.*)/);
+    if (m) return { label: m[1], rest: m[2] };
+    // "create-job: HTTP 200 (OK)" or "trigger: HTTP 500: ..." (new format, colon after label)
+    var ci = part.indexOf(':');
+    if (ci > 0) return { label: part.substring(0, ci).trim(), rest: part.substring(ci + 1).trim() };
+    return { label: null, rest: part };
+}
+function stepLabelColor(label) {
+    if (!label) return 'var(--muted)';
+    var l = label.toLowerCase();
+    if (l === 'dbx')         return 'var(--info)';
+    if (l === 'bq')          return 'var(--accent)';
+    if (l === 'create-job')  return 'var(--warn)';
+    if (l === 'trigger')     return 'var(--info)';
+    return 'var(--muted)';
+}
+function buildFailBody(f) {
+    var parts = (f.failureReason || '').split(' | ');
+    var h = '<div class="steps-breakdown">';
+    parts.forEach(function(part, idx) {
+        var parsed = parseFailStep(part.trim());
+        var isOk   = parsed.rest.includes('(OK)') || /^HTTP\s+2\d\d/.test(parsed.rest);
+        h += '<div class="src-row">';
+        h += '<span class="step-badge">Step ' + (idx + 1) + '</span>';
+        if (parsed.label) {
+            h += '<span class="src-lbl" style="color:' + stepLabelColor(parsed.label) + '">' + esc(parsed.label) + '</span>';
+        }
+        if (isOk) h += '<span class="src-ok">✓ ' + esc(parsed.rest) + '</span>';
+        else      h += '<span class="src-fail">✗ ' + esc(parsed.rest) + '</span>';
+        h += '</div>';
+    });
+    h += '</div>';
+    var hasCurl = f.testCurl || f.dbxCurl || f.bqCurl;
+    if (hasCurl || f.queryGenieUrl) {
+        h += '<div class="action-btns">';
+        if (f.testCurl) h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(f.apiId) + '-test\',this)">Test CURL ▾</button>';
+        if (f.dbxCurl)  h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(f.apiId) + '-dbx\',this)">Test DBX CURL ▾</button>';
+        if (f.bqCurl)   h += '<button class="act-btn bq"  onclick="toggleCurl(\'' + safeid(f.apiId) + '-bq\',this)">Test BQ CURL ▾</button>';
+        if (f.queryGenieUrl) h += '<a href="' + esc(f.queryGenieUrl) + '" target="_blank" class="act-btn qg">🔍 Query Genie</a>';
+        h += '</div>';
+        if (f.testCurl) h += curlPanelHtml(safeid(f.apiId) + '-test', 'Test CURL (no x-bqdbx-config)', f.testCurl);
+        if (f.dbxCurl)  h += curlPanelHtml(safeid(f.apiId) + '-dbx', 'DBX_ONLY CURL', f.dbxCurl);
+        if (f.bqCurl)   h += curlPanelHtml(safeid(f.apiId) + '-bq',  'BQ_ONLY CURL',  f.bqCurl);
+    }
+    return h;
+}
+
+/* ── HTML helpers ── */
+function mpill(lbl, val) { return '<div class="meta-pill"><strong>' + lbl + '</strong>' + esc(val) + '</div>'; }
+function sc(n, lbl, cls) { return '<div class="sc ' + cls + '"><div class="num">' + n + '</div><div class="lbl">' + lbl + '</div></div>'; }
+function chip(cls, txt)   { return '<span class="chip ' + cls + '">' + esc(txt) + '</span>'; }
+
+function secHdr(id, title, count, colorKey) {
+    var colors = { pass:'var(--pass)', mis:'var(--danger)', emp:'var(--empty)', fail:'var(--danger)', warn:'var(--warn)' };
+    return '<div class="sec-hdr" onclick="toggleSec(\'' + id + '\')">'
+        + '<h2 style="color:' + colors[colorKey] + '">' + title + ' <span class="sec-count">(' + count + ')</span></h2>'
+        + '<span class="sec-toggle" id="tgl-' + id + '">▾</span></div>';
+}
+function apiCard(cid, name, chips, bodyHtml) {
+    return '<div class="api-card">'
+        + '<div class="card-slab" onclick="toggleCard(\'' + cid + '\')">'
+        + '<span class="api-id">' + esc(name) + '</span>'
+        + chips
+        + '<span class="slab-toggle" id="ctgl-' + cid + '">▾</span>'
+        + '</div>'
+        + '<div class="card-body" id="cbody-' + cid + '">' + bodyHtml + '</div>'
+        + '</div>';
+}
+function curlPanelHtml(pid, label, cmd) {
+    var uid = pid + '-code';
+    return '<div class="curl-panel" id="curl-' + pid + '">'
+        + '<div class="curl-lbl">' + esc(label) + '</div>'
+        + '<div class="curl-box"><button class="copy-btn" onclick="doCopy(\'' + uid + '\',this)">Copy</button>'
+        + '<code id="' + uid + '">' + esc(cmd) + '</code></div></div>';
+}
+
+/* ── Event handlers ── */
+function toggleSec(id) {
+    var b = document.getElementById('body-' + id);
+    var t = document.getElementById('tgl-' + id);
+    if (!b) return;
+    var c = b.classList.toggle('collapsed');
+    collapsedSecs[id] = c;
+    if (t) t.textContent = c ? '▸' : '▾';
+}
+function toggleCard(cid) {
+    var b = document.getElementById('cbody-' + cid);
+    var t = document.getElementById('ctgl-' + cid);
+    if (!b) return;
+    var open = b.classList.toggle('open');
+    openCards[cid] = open;
+    if (t) t.textContent = open ? '▴' : '▾';
+}
+function toggleCurl(pid, btn) {
+    var p = document.getElementById('curl-' + pid);
+    if (!p) return;
+    var open = p.classList.toggle('open');
+    btn.textContent = btn.textContent.replace(/[▾▴]/, open ? '▴' : '▾');
+}
+function doCopy(id, btn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var t = el.textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.resolve(fallbackCopy(t)))
+        .then(() => { btn.textContent = '✓'; setTimeout(() => btn.textContent = 'Copy', 1500); });
+}
+function fallbackCopy(t) {
+    var ta = document.createElement('textarea'); ta.value = t;
+    ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+}
+function esc(s) { if (s == null) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+function safeid(s) { return String(s).replace(/[^a-zA-Z0-9]/g, '_'); }
+function scrollToHash() { var h = window.location.hash; if (h) { var el = document.querySelector(h); if (el) el.scrollIntoView({ behavior: 'smooth' }); } }
+
+/* ── Click delegation — card slab (passed) navigates on click ── */
+document.getElementById('content').addEventListener('click', function(e) {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('a') || e.target.closest('.act-btn')) return;
+});
+
+pollTimer = setInterval(fetchReport, pollInterval);
+fetchReport();
+window.addEventListener('hashchange', scrollToHash);
+</script>
 </body>
 </html>

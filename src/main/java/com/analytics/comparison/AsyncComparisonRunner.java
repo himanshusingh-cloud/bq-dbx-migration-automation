@@ -101,6 +101,7 @@ public class AsyncComparisonRunner {
                 .testResponseJson(testResp)
                 .prodResponseJson(prodResp)
                 .requestPayload(reqPayload)
+                .error(r.getError())
                 .build();
         resultRepository.save(cr);
     }
@@ -155,6 +156,7 @@ public class AsyncComparisonRunner {
                     .testResponseJson(null)
                     .prodResponseJson(null)
                     .requestPayload(null)
+                    .error(errorMsg)
                     .build();
             resultRepository.save(cr);
         } catch (Exception e) {

@@ -188,6 +188,101 @@ public class ComparisonController {
             apiResults.add(m);
         }
 
+        // Build categorized summary
+        List<String> passedApis = new ArrayList<>();
+        List<Map<String, Object>> mismatchApis = new ArrayList<>();
+        List<Map<String, Object>> emptyBothApis = new ArrayList<>();
+        List<Map<String, Object>> failedApis = new ArrayList<>();
+
+        String client = suite.getClient();
+        Map<String, String> headers = configResolver.getConfigHeaders(client, null, null);
+
+        for (Map<String, Object> api : apiResults) {
+            String aid = (String) api.get("apiId");
+            if ("in_progress".equals(api.get("status"))) continue;
+
+            Integer testRows = (Integer) api.get("testRowCount");
+            Integer prodRows = (Integer) api.get("prodRowCount");
+            Integer diffCount = (Integer) api.get("diffCount");
+            String rowStatus = (String) api.get("rowCountStatus");
+
+            boolean bothZero = Integer.valueOf(0).equals(testRows) && Integer.valueOf(0).equals(prodRows);
+            boolean failed = (testRows == null && prodRows == null);
+            boolean rowMatch = "matching".equals(rowStatus);
+            boolean noDiff = (diffCount == null || diffCount == 0);
+
+            if (bothZero) {
+                // Both DBX and BQ returned empty (HTTP 200 with no data)
+                ComparisonResult r = resultByApi.get(aid);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("apiId", aid);
+                entry.put("message", "Both DBX and BQ returned empty response (0 rows) — no data for this date/filters");
+                if (r != null && r.getJobId() != null) {
+                    entry.put("jobId", r.getJobId());
+                    entry.put("dbxCurl", buildCurlWithBqDbxConfig(r.getTestUrl(), r.getJobId(), r.getRequestPayload(), headers, "DBX_ONLY"));
+                    entry.put("bqCurl", buildCurlWithBqDbxConfig(r.getProdUrl(), r.getJobId(), r.getRequestPayload(), headers, "BQ_ONLY"));
+                    String qgUrl = r.getJobId() != null && !r.getJobId().isBlank()
+                            ? queryGenieBaseUrl.replaceAll("/$", "") + "/alert-validation-detail/" + r.getJobId()
+                            : null;
+                    if (qgUrl != null) entry.put("queryGenieUrl", qgUrl);
+                }
+                emptyBothApis.add(entry);
+            } else if (failed) {
+                // API could not be compared - HTTP error or exception
+                ComparisonResult r = resultByApi.get(aid);
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("apiId", aid);
+                String reason = (r != null && r.getError() != null) ? r.getError()
+                        : extractErrorFromMismatches(r != null ? r.getMismatchesJson() : null);
+                entry.put("failureReason", reason != null ? reason : "API returned error or empty after all retries");
+                if (r != null && r.getTestUrl() != null && r.getRequestPayload() != null) {
+                    entry.put("jobId", r.getJobId());
+                    // Detect trigger/create-job failures (export API two-step flow) vs DBX/BQ failures
+                    String errReason = (String) entry.get("failureReason");
+                    boolean isTriggerOrCreateJobFail = errReason != null
+                            && (errReason.contains("trigger:") || errReason.contains("create-job:"));
+                    if (isTriggerOrCreateJobFail) {
+                        // Trigger or create-job failed — only one URL involved, show as "Test CURL"
+                        entry.put("testCurl", buildCurl(r.getTestUrl(), r.getJobId(), r.getRequestPayload(), headers));
+                    } else {
+                        entry.put("dbxCurl", buildCurlWithBqDbxConfig(r.getTestUrl(), r.getJobId(), r.getRequestPayload(), headers, "DBX_ONLY"));
+                        entry.put("bqCurl", buildCurlWithBqDbxConfig(r.getProdUrl(), r.getJobId(), r.getRequestPayload(), headers, "BQ_ONLY"));
+                    }
+                    String qgUrl = r.getJobId() != null && !r.getJobId().isBlank()
+                            ? queryGenieBaseUrl.replaceAll("/$", "") + "/alert-validation-detail/" + r.getJobId()
+                            : null;
+                    if (qgUrl != null) entry.put("queryGenieUrl", qgUrl);
+                }
+                failedApis.add(entry);
+            } else if (rowMatch && noDiff) {
+                // Row counts match and zero diffs → passed
+                passedApis.add(aid);
+            } else {
+                // Row count mismatch OR diffs present → mismatch
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("apiId", aid);
+                entry.put("testRowCount", testRows);
+                entry.put("prodRowCount", prodRows);
+                entry.put("rowCountStatus", rowStatus);
+                entry.put("diffCount", diffCount);
+                entry.put("mismatchReportURL", api.get("mismatchReportURL"));
+                entry.put("queryGenieUrl", api.get("queryGenieUrl"));
+                mismatchApis.add(entry);
+            }
+        }
+
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("totalApis", apisList.size());
+        summary.put("inProgress", (int) apiResults.stream().filter(a -> "in_progress".equals(a.get("status"))).count());
+        summary.put("passedCount", passedApis.size());
+        summary.put("mismatchCount", mismatchApis.size());
+        summary.put("emptyBothCount", emptyBothApis.size());
+        summary.put("failedCount", failedApis.size());
+        summary.put("passed", passedApis);
+        summary.put("mismatch", mismatchApis);
+        summary.put("emptyBoth", emptyBothApis);
+        summary.put("failed", failedApis);
+
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("suiteId", suiteId);
         resp.put("suiteStatus", suite.getSuiteStatus());
@@ -195,7 +290,7 @@ public class ComparisonController {
         resp.put("startDate", suite.getStartDate());
         resp.put("endDate", suite.getEndDate());
         resp.put("apiGroup", suite.getApiGroup());
-        resp.put("apis", apisList);
+        resp.put("summary", summary);
         resp.put("results", apiResults);
         resp.put("reportUrl", reportBase);
         return ResponseEntity.ok(resp);
@@ -278,6 +373,23 @@ public class ComparisonController {
                 return objectMapper.readValue(candidate, new TypeReference<List<Map<String, String>>>() {});
             } catch (Exception ignored) {}
         }
+        return null;
+    }
+
+    /** Extract the error message stored in mismatches_json as [{path:"_error", test:"msg"}]. */
+    private String extractErrorFromMismatches(String mismatchesJson) {
+        if (mismatchesJson == null || mismatchesJson.isBlank()) return null;
+        try {
+            List<Map<String, String>> list = objectMapper.readValue(mismatchesJson,
+                    new TypeReference<List<Map<String, String>>>() {});
+            for (Map<String, String> m : list) {
+                if ("_error".equals(m.get("path"))) {
+                    String msg = m.get("test");
+                    if (msg == null || msg.isBlank() || "N/A".equals(msg)) msg = m.get("prod");
+                    if (msg != null && !msg.isBlank() && !"N/A".equals(msg)) return msg;
+                }
+            }
+        } catch (Exception ignored) {}
         return null;
     }
 

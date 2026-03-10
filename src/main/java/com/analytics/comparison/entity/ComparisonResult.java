@@ -63,4 +63,8 @@ public class ComparisonResult {
     @Lob
     @Column(name = "request_payload")
     private String requestPayload;
+
+    /** Human-readable failure reason (HTTP status + message) when API could not be compared. */
+    @Column(name = "error", length = 1024)
+    private String error;
 }

@@ -216,59 +216,173 @@ public class TestVsProdComparisonService {
         try {
             Map<String, Object> effectiveBaseParams = new HashMap<>(baseParams);
             Map<String, List<String>> effectiveTaxonomy = taxonomy;
-            // For sparse-data APIs: saved when we get a 0-row result so we can try more sub_brand groups
             ApiComparisonResult sparseEmptyFallback = null;
             int sparseGroupIndex = 0;
+            // Tracks the first 5xx failure (full-filter curl preserved for display)
+            ApiComparisonResult lastFailureResult = null;
+            // Set when attempt 0 returns genuinely empty (0 rows, no 5xx) — triggers filter-cycling retries
+            boolean firstAttemptWasEmpty = false;
 
             for (int attempt = 0; attempt < MAX_RETRIES_FOR_500_OR_EMPTY; attempt++) {
                 ApiComparisonResult result = tryCompareOneApi(spec, effectiveBaseParams, effectiveTaxonomy, headers, testBaseUrl);
 
                 if (result != null) {
-                    // For sparse-data APIs: a 0-row result means "no data for THIS filter combo" - try different sub_brand groups
-                    if (SPARSE_DATA_APIS.contains(apiId)
-                            && Boolean.TRUE.equals(result.isMatch())
-                            && Integer.valueOf(0).equals(result.getTestRowCount())
-                            && Integer.valueOf(0).equals(result.getProdRowCount())) {
-                        if (sparseEmptyFallback == null) sparseEmptyFallback = result;
-                        sparseGroupIndex++;
-                        List<String> subBrands = taxonomy.getOrDefault("sub_brands", List.of());
-                        int groupSize = 15;
-                        if (subBrands.isEmpty() || sparseGroupIndex * groupSize >= subBrands.size()) {
-                            // Exhausted all sub_brand groups - no data exists for this date
-                            log.info("[COMPARE] {} tried all sub_brand groups - no data for this date (0-row match)", apiId);
-                            return sparseEmptyFallback;
-                        }
-                        int start = sparseGroupIndex * groupSize;
-                        int end = Math.min(start + groupSize, subBrands.size());
-                        Map<String, List<String>> nextGroup = new HashMap<>(effectiveTaxonomy);
-                        nextGroup.put("sub_brands", new ArrayList<>(subBrands.subList(start, end)));
-                        effectiveTaxonomy = nextGroup;
-                        log.info("[COMPARE] {} got empty on sub_brand group {} - trying group {} [{}-{}]",
-                                apiId, sparseGroupIndex - 1, sparseGroupIndex, start, end - 1);
-                        continue;
-                    }
+                    if (result.isShouldRetry()) {
+                        // 5xx — keep FIRST failure so the stored curl always has real filter data
+                        log.info("[COMPARE] {} attempt {} got 5xx ({})", apiId, attempt + 1, result.getError());
+                        if (lastFailureResult == null) lastFailureResult = result;
 
-                    if (attempt > 0) {
-                        log.info("[COMPARE] Got valid response for {} on attempt {} with reduced filters", apiId, attempt + 1);
+                        if (SPARSE_DATA_APIS.contains(apiId)) {
+                            // Sparse APIs: cycle sub_brand groups on 500 instead of stripping filters
+                            sparseGroupIndex++;
+                            List<String> subBrands = taxonomy.getOrDefault("sub_brands", List.of());
+                            int groupSize = 15;
+                            if (!subBrands.isEmpty() && sparseGroupIndex * groupSize < subBrands.size()) {
+                                int start = sparseGroupIndex * groupSize;
+                                int end = Math.min(start + groupSize, subBrands.size());
+                                Map<String, List<String>> nextGroup = new HashMap<>(effectiveTaxonomy);
+                                nextGroup.put("sub_brands", new ArrayList<>(subBrands.subList(start, end)));
+                                effectiveTaxonomy = nextGroup;
+                                log.info("[COMPARE] {} got 500 on sub_brand group {}, trying group {} [{}-{}]",
+                                        apiId, sparseGroupIndex - 1, sparseGroupIndex, start, end - 1);
+                                continue;
+                            }
+                            log.info("[COMPARE] {} tried all sub_brand groups with 500 - exhausted", apiId);
+                            break;
+                        }
+                        // Non-sparse 5xx: fall through to retry schedule below
+
+                    } else {
+                        boolean is0Rows = Boolean.TRUE.equals(result.isMatch())
+                                && Integer.valueOf(0).equals(result.getTestRowCount())
+                                && Integer.valueOf(0).equals(result.getProdRowCount());
+
+                        if (SPARSE_DATA_APIS.contains(apiId) && is0Rows) {
+                            // Sparse: cycle sub_brand groups on empty response
+                            if (sparseEmptyFallback == null) sparseEmptyFallback = result;
+                            sparseGroupIndex++;
+                            List<String> subBrands = taxonomy.getOrDefault("sub_brands", List.of());
+                            int groupSize = 15;
+                            if (subBrands.isEmpty() || sparseGroupIndex * groupSize >= subBrands.size()) {
+                                log.info("[COMPARE] {} tried all sub_brand groups - no data for this date (0-row match)", apiId);
+                                return sparseEmptyFallback;
+                            }
+                            int start = sparseGroupIndex * groupSize;
+                            int end = Math.min(start + groupSize, subBrands.size());
+                            Map<String, List<String>> nextGroup = new HashMap<>(effectiveTaxonomy);
+                            nextGroup.put("sub_brands", new ArrayList<>(subBrands.subList(start, end)));
+                            effectiveTaxonomy = nextGroup;
+                            log.info("[COMPARE] {} got empty on sub_brand group {} - trying group {} [{}-{}]",
+                                    apiId, sparseGroupIndex - 1, sparseGroupIndex, start, end - 1);
+                            continue;
+                        }
+
+                        if (!SPARSE_DATA_APIS.contains(apiId) && is0Rows) {
+                            if (lastFailureResult != null && attempt > 0) {
+                                // 0 rows from reduced filters after prior 5xx — don't accept as empty, keep retrying
+                                log.info("[COMPARE] {} got 0 rows on reduced filters (attempt {}) after prior 5xx — skipping", apiId, attempt + 1);
+                                // Fall through to retry schedule
+                            } else if (lastFailureResult == null) {
+                                // Empty with no prior 5xx — try different filter combinations before giving up
+                                if (sparseEmptyFallback == null) sparseEmptyFallback = result;
+                                if (attempt == 0) {
+                                    firstAttemptWasEmpty = true;
+                                    log.info("[COMPARE] {} attempt 1 returned 0 rows — retrying with different filter combinations", apiId);
+                                } else {
+                                    log.info("[COMPARE] {} attempt {} still 0 rows — trying next filter combination", apiId, attempt + 1);
+                                }
+                                // Fall through to retry schedule
+                            } else {
+                                return result;
+                            }
+                        } else {
+                            if (attempt > 0) {
+                                log.info("[COMPARE] Got valid response for {} on attempt {} with reduced filters", apiId, attempt + 1);
+                            }
+                            return result;
+                        }
                     }
-                    return result;
                 }
 
+                // Retry schedule
                 if (attempt < MAX_RETRIES_FOR_500_OR_EMPTY - 1) {
-                    if (attempt >= MAX_RETRIES_FOR_500_OR_EMPTY - 2) {
-                        log.info("[COMPARE] Retry {} for {}: trying empty filters (API may return empty when filters don't match data)", attempt + 1, apiId);
-                        effectiveTaxonomy = emptyTaxonomy(taxonomy);
+                    if (firstAttemptWasEmpty && lastFailureResult == null) {
+                        // Empty-retry path: full filters already returned empty — immediately cycle filter subsets
+                        switch (attempt) {
+                            case 0:
+                                log.info("[COMPARE] Retry 1 for {}: first 5 items per filter (empty retry)", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 5, 0);
+                                break;
+                            case 1:
+                                log.info("[COMPARE] Retry 2 for {}: first 3 items per filter (empty retry)", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 3, 0);
+                                break;
+                            case 2:
+                                log.info("[COMPARE] Retry 3 for {}: first 2 items per filter (empty retry)", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 2, 0);
+                                break;
+                            case 3:
+                                log.info("[COMPARE] Retry 4 for {}: first 1 item per filter (empty retry)", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 1, 0);
+                                break;
+                            default:
+                                // All filter combinations tried and all empty — stop retrying
+                                log.info("[COMPARE] {} exhausted all filter combinations with empty response", apiId);
+                                return sparseEmptyFallback != null ? sparseEmptyFallback
+                                        : buildErrorResult(apiId, "All filter combinations returned empty");
+                        }
                     } else {
-                        int offset = attempt;
-                        log.info("[COMPARE] Retry {} for {}: using 1 filter per list (offset={}) + single date to avoid 500", attempt + 1, apiId, offset);
-                        effectiveBaseParams = reduceParams(effectiveBaseParams);
-                        effectiveTaxonomy = reduceTaxonomy(taxonomy, 1, offset);
+                        // 5xx-retry path: full retry once for transient errors, then reduce filters
+                        switch (attempt) {
+                            case 0:
+                                log.info("[COMPARE] Retry 1 for {}: retrying full filters (transient 5xx)", apiId);
+                                effectiveBaseParams = new HashMap<>(baseParams);
+                                break;
+                            case 1:
+                                log.info("[COMPARE] Retry 2 for {}: first 5 items per filter", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 5, 0);
+                                break;
+                            case 2:
+                                log.info("[COMPARE] Retry 3 for {}: first 3 items per filter", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 3, 0);
+                                break;
+                            case 3:
+                                log.info("[COMPARE] Retry 4 for {}: first 2 items per filter", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 2, 0);
+                                break;
+                            case 4:
+                                log.info("[COMPARE] Retry 5 for {}: first 1 item per filter", apiId);
+                                effectiveTaxonomy = reduceTaxonomy(taxonomy, 1, 0);
+                                break;
+                            default:
+                                effectiveTaxonomy = emptyTaxonomy(taxonomy);
+                                break;
+                        }
                     }
                 }
             }
+
             if (sparseEmptyFallback != null) {
                 log.info("[COMPARE] {} has no data across all retries - reporting 0-row match", apiId);
                 return sparseEmptyFallback;
+            }
+            // Use last captured failure details if available (preserves testUrl, requestPayload, real error)
+            if (lastFailureResult != null) {
+                log.warn("[COMPARE] {} exhausted all retries - returning last failure: {}", apiId, lastFailureResult.getError());
+                return ApiComparisonResult.builder()
+                        .apiId(apiId)
+                        .jobId(lastFailureResult.getJobId())
+                        .testUrl(lastFailureResult.getTestUrl())
+                        .prodUrl(lastFailureResult.getProdUrl())
+                        .requestPayload(lastFailureResult.getRequestPayload())
+                        .match(false)
+                        .testRowCount(null)
+                        .prodRowCount(null)
+                        .mismatchCount(0)
+                        .error(lastFailureResult.getError())
+                        .mismatches(lastFailureResult.getMismatches())
+                        .shouldRetry(false)
+                        .build();
             }
             return buildErrorResult(apiId, "API returned 500 or empty after " + MAX_RETRIES_FOR_500_OR_EMPTY + " retries");
         } catch (Exception e) {
@@ -276,6 +390,11 @@ public class TestVsProdComparisonService {
             return buildErrorResult(apiId, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
         }
     }
+
+    // Data providers whose rows should be cycled when a row returns empty (no data)
+    private static final Set<String> CYCLE_ROWS_PROVIDERS = Set.of(
+            "feedbackProductComments", "searchProductHistory", "search"
+    );
 
     private ApiComparisonResult tryCompareOneApi(ApiDefinition.ApiSpec spec, Map<String, Object> baseParams,
                                                  Map<String, List<String>> taxonomy, Map<String, String> headers,
@@ -286,24 +405,63 @@ public class TestVsProdComparisonService {
         if (dataRows.isEmpty()) {
             dataRows = Collections.singletonList(new HashMap<>(baseParams));
         }
-        Map<String, Object> params = new HashMap<>(dataRows.get(0));
-        params.put("start_date", baseParams.get("start_date"));
-        params.put("end_date", baseParams.get("end_date"));
 
-        // Export flow: create-job first, then query with modelId
-        if (spec.getCreateJobEndpoint() != null && !spec.getCreateJobEndpoint().isBlank()
-                && spec.getModelId() != null && !spec.getModelId().isBlank()) {
-            return tryCompareExportApi(spec, params, baseParams, taxonomy, headers, testBaseUrl);
-        }
+        boolean cycleThroughRows = CYCLE_ROWS_PROVIDERS.contains(spec.getDataProvider()) && dataRows.size() > 1;
+        ApiComparisonResult lastEmptyResult = null;
 
-        String payload;
-        try {
-            payload = payloadGenerator.generate(spec.getTemplate(), params, taxonomy);
-        } catch (Exception e) {
-            log.warn("Payload generation failed for {}: {}", apiId, e.getMessage());
-            payload = payloadGenerator.generate(spec.getTemplate(), baseParams, taxonomy);
+        for (int rowIdx = 0; rowIdx < dataRows.size(); rowIdx++) {
+            Map<String, Object> params = new HashMap<>(dataRows.get(rowIdx));
+            params.put("start_date", baseParams.get("start_date"));
+            params.put("end_date", baseParams.get("end_date"));
+
+            // If a row carries a specific journey (from search/shareOfSearch cycling), narrow the taxonomy
+            // so DynamicPayloadBuilder injects only that journey into the "journeys" array.
+            Map<String, List<String>> rowTaxonomy = taxonomy;
+            if (params.containsKey("_single_journey")) {
+                String singleJourney = String.valueOf(params.get("_single_journey"));
+                Map<String, List<String>> narrowed = new HashMap<>(taxonomy);
+                narrowed.put("journeys", Collections.singletonList(singleJourney));
+                rowTaxonomy = narrowed;
+            }
+
+            // Export flow: create-job first, then query with modelId
+            if (spec.getCreateJobEndpoint() != null && !spec.getCreateJobEndpoint().isBlank()
+                    && spec.getModelId() != null && !spec.getModelId().isBlank()) {
+                return tryCompareExportApi(spec, params, baseParams, rowTaxonomy, headers, testBaseUrl);
+            }
+
+            String payload;
+            try {
+                payload = payloadGenerator.generate(spec.getTemplate(), params, rowTaxonomy);
+            } catch (Exception e) {
+                log.warn("Payload generation failed for {}: {}", apiId, e.getMessage());
+                payload = payloadGenerator.generate(spec.getTemplate(), baseParams, rowTaxonomy);
+            }
+
+            ApiComparisonResult result = tryCompareWithPayload(spec, baseParams, rowTaxonomy, headers, testBaseUrl, payload);
+
+            if (cycleThroughRows && result != null && !result.isShouldRetry()) {
+                boolean is0Rows = Boolean.TRUE.equals(result.isMatch())
+                        && Integer.valueOf(0).equals(result.getTestRowCount())
+                        && Integer.valueOf(0).equals(result.getProdRowCount());
+                String rowLabel = params.containsKey("_label") ? String.valueOf(params.get("_label"))
+                        : String.valueOf(params.getOrDefault("retailer", "row " + (rowIdx + 1)));
+                if (is0Rows && rowIdx < dataRows.size() - 1) {
+                    log.info("[COMPARE] {} row {}/{}: 0 rows for '{}' — trying next combination",
+                            apiId, rowIdx + 1, dataRows.size(), rowLabel);
+                    lastEmptyResult = result;
+                    continue;
+                }
+                if (is0Rows) {
+                    log.info("[COMPARE] {} tried all {} combination(s) — all returned empty", apiId, dataRows.size());
+                    return lastEmptyResult != null ? lastEmptyResult : result;
+                }
+                log.info("[COMPARE] {} found data with '{}' (row {}/{})",
+                        apiId, rowLabel, rowIdx + 1, dataRows.size());
+            }
+            return result;
         }
-        return tryCompareWithPayload(spec, baseParams, taxonomy, headers, testBaseUrl, payload);
+        return lastEmptyResult;
     }
 
     /** Export flow: 1) create-job, 2) query with modelId for Query Genie + DBX vs BQ comparison */
@@ -351,9 +509,21 @@ public class TestVsProdComparisonService {
         }
         log.info("[COMPARE] Export create-job: POST {} | apiId={}", testBaseUrl + createJobEndpoint, apiId);
         TestExecutor.ApiExecutionResult createResult = testExecutor.execute(testBaseUrl, createJobEndpoint, createJobHeaders, createJobPayload, 0);
+        Integer createHttpStatus = createResult.getHttpStatus();
         if (createResult.getResponsePayload() == null || !"PASS".equals(createResult.getStatus())) {
-            log.warn("[COMPARE] Create-job failed for {}: http={}", apiId, createResult.getHttpStatus());
-            return null;
+            log.warn("[COMPARE] Create-job failed for {}: http={}", apiId, createHttpStatus);
+            String createBody = truncateBody(createResult.getErrorMessage() != null
+                    ? createResult.getErrorMessage() : createResult.getResponsePayload());
+            boolean is5xx = createHttpStatus != null && createHttpStatus >= 500;
+            return ApiComparisonResult.builder()
+                    .apiId(apiId).jobId(UUID.randomUUID().toString())
+                    .testUrl(testBaseUrl + createJobEndpoint).prodUrl(testBaseUrl + createJobEndpoint)
+                    .requestPayload(createJobPayload)
+                    .match(false).testRowCount(null).prodRowCount(null).mismatchCount(null)
+                    .error("create-job: HTTP " + createHttpStatus + ": " + createBody)
+                    .shouldRetry(is5xx)
+                    .mismatches(Collections.emptyList())
+                    .build();
         }
 
         // 2. Build query payload (parameters + labels from create-job)
@@ -376,7 +546,12 @@ public class TestVsProdComparisonService {
         querySpec.setApiId(spec.getApiId());
         querySpec.setEndpoint(queryEndpoint);
         querySpec.setMethod(spec.getMethod());
-        return tryCompareWithPayload(querySpec, baseParams, taxonomy, headers, testBaseUrl, queryPayload);
+        ApiComparisonResult result = tryCompareWithPayload(querySpec, baseParams, taxonomy, headers, testBaseUrl, queryPayload);
+        // Prepend create-job success so the UI shows the two-step breakdown
+        if (result != null && result.getError() != null) {
+            result.setError("create-job: HTTP " + createHttpStatus + " (OK) | " + result.getError());
+        }
+        return result;
     }
 
     private ApiComparisonResult tryCompareWithPayload(ApiDefinition.ApiSpec spec, Map<String, Object> baseParams,
@@ -396,9 +571,20 @@ public class TestVsProdComparisonService {
         boolean triggerEmpty = isEmptyResponse(triggerResult.getResponsePayload());
         Integer triggerStatus = triggerResult.getHttpStatus();
         if (triggerFail) {
-            // 5xx / 4xx errors → retry with less filters
+            String triggerBody = truncateBody(triggerResult.getErrorMessage() != null
+                    ? triggerResult.getErrorMessage() : triggerResult.getResponsePayload());
+            String triggerErrMsg = "trigger: HTTP " + triggerStatus + ": " + triggerBody;
+            boolean is5xx = triggerStatus != null && triggerStatus >= 500;
             log.info("[COMPARE] Query Genie trigger returned {} - will retry with less filter", triggerStatus);
-            return null;
+            return ApiComparisonResult.builder()
+                    .apiId(apiId).jobId(jobId)
+                    .testUrl(fullUrl).prodUrl(fullUrl)
+                    .requestPayload(payload)
+                    .match(false).testRowCount(null).prodRowCount(null).mismatchCount(null)
+                    .error(triggerErrMsg)
+                    .shouldRetry(is5xx)
+                    .mismatches(Collections.emptyList())
+                    .build();
         }
         if (triggerEmpty) {
             // HTTP 200 but empty data (API works, just no data for these filters)
@@ -431,12 +617,18 @@ public class TestVsProdComparisonService {
 
         if (dbxFail || bqFail) {
             Integer dbxStatus = dbxResult.getHttpStatus();
-            Integer bqStatus = bqResult.getHttpStatus();
-            if ((dbxStatus != null && dbxStatus >= 500) || (bqStatus != null && bqStatus >= 500)) {
-                return null;
-            }
-            String errMsg = dbxFail ? (dbxResult.getErrorMessage() != null ? dbxResult.getErrorMessage() : "HTTP " + dbxResult.getHttpStatus())
-                    : (bqResult.getErrorMessage() != null ? bqResult.getErrorMessage() : "HTTP " + bqResult.getHttpStatus());
+            Integer bqStatus  = bqResult.getHttpStatus();
+
+            // Build a detailed per-source error message
+            String dbxSummary = dbxFail
+                    ? "DBX HTTP " + dbxStatus + ": " + truncateBody(dbxResult.getErrorMessage() != null ? dbxResult.getErrorMessage() : dbxResult.getResponsePayload())
+                    : "DBX HTTP " + dbxStatus + " (OK)";
+            String bqSummary  = bqFail
+                    ? "BQ HTTP " + bqStatus  + ": " + truncateBody(bqResult.getErrorMessage()  != null ? bqResult.getErrorMessage()  : bqResult.getResponsePayload())
+                    : "BQ HTTP "  + bqStatus  + " (OK)";
+            String errMsg = dbxSummary + " | " + bqSummary;
+
+            boolean has5xx = (dbxStatus != null && dbxStatus >= 500) || (bqStatus != null && bqStatus >= 500);
             return ApiComparisonResult.builder()
                     .apiId(apiId)
                     .jobId(jobId)
@@ -446,10 +638,13 @@ public class TestVsProdComparisonService {
                     .testRowCount(null)
                     .prodRowCount(null)
                     .mismatchCount(null)
+                    .requestPayload(payload)
+                    .error(errMsg)
+                    .shouldRetry(has5xx)   // 5xx → caller will retry; 4xx → final answer
                     .mismatches(Collections.singletonList(Map.of(
                             "path", "_error",
-                            "prod", bqFail ? errMsg : "N/A",
-                            "test", dbxFail ? errMsg : "N/A")))
+                            "prod", bqFail  ? bqSummary  : "OK",
+                            "test", dbxFail ? dbxSummary : "OK")))
                     .build();
         }
         if (dbxEmpty && bqEmpty) {
@@ -572,7 +767,14 @@ public class TestVsProdComparisonService {
         return reduced;
     }
 
+    private String truncateBody(String body) {
+        if (body == null || body.isBlank()) return "(no body)";
+        String t = body.trim();
+        return t.length() <= 250 ? t : t.substring(0, 250) + "…";
+    }
+
     private ApiComparisonResult buildErrorResult(String apiId, String errMsg) {
+        String msg = errMsg != null ? errMsg : "Unknown error";
         return ApiComparisonResult.builder()
                 .apiId(apiId)
                 .jobId(UUID.randomUUID().toString())
@@ -582,10 +784,11 @@ public class TestVsProdComparisonService {
                 .testRowCount(null)
                 .prodRowCount(null)
                 .mismatchCount(0)
+                .error(msg)
                 .mismatches(Collections.singletonList(Map.of(
                         "path", "_error",
                         "prod", "",
-                        "test", errMsg != null ? errMsg : "Unknown error")))
+                        "test", msg)))
                 .build();
     }
 
@@ -722,5 +925,13 @@ public class TestVsProdComparisonService {
         private String testJson;
         private String prodJson;
         private String requestPayload;
+        /** Human-readable failure reason set when an API returns an error and cannot be compared. */
+        private String error;
+        /**
+         * When true: this result carries 5xx failure context but the caller should still retry
+         * with reduced filters. The fields testUrl/prodUrl/requestPayload/jobId/error are populated
+         * so that when retries are exhausted the last failure details are available.
+         */
+        private boolean shouldRetry;
     }
 }

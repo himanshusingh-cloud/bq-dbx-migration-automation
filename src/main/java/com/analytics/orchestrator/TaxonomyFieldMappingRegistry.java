@@ -191,6 +191,9 @@ public class TaxonomyFieldMappingRegistry {
         mappings.put("availabilityInsightsDetail", availabilityInsightsMapping);
         mappings.put("availabilityInsightsDetailCategory", availabilityInsightsMapping);
         mappings.put("prolongedOOSDetail", availabilityInsightsMapping);
+        // sameDayOOS uses a fully static template payload (cocacola-au representative data).
+        // No taxonomy overrides — template brands/categories/retailers are always used as-is.
+        mappings.put("sameDayOOS", Map.of());
         // Search APIs
         mappings.put("shareOfSearchByBrandV2", Map.of(
                 "retailers", "retailers",

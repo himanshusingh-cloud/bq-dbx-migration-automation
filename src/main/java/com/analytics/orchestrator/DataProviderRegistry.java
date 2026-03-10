@@ -48,7 +48,7 @@ public class DataProviderRegistry {
                 rows = Collections.singletonList(new HashMap<>(baseParams));
                 break;
             case "search":
-                rows = searchRows(baseParams);
+                rows = searchRows(baseParams, taxonomy);
                 break;
             case "searchProductHistory":
                 rows = searchProductHistoryRows(baseParams, taxonomy);
@@ -163,20 +163,50 @@ public class DataProviderRegistry {
     private int getLimit(Map<String, Object> params, int defaultLimit) {
         if (params.containsKey("_limit")) {
             Object v = params.get("_limit");
-            if (v instanceof Number) return ((Number) v).intValue();
+            if (v instanceof Number) {
+                int val = ((Number) v).intValue();
+                // Integer.MAX_VALUE means "no outer limit" from the comparison framework
+                // — cap at defaultLimit to prevent unbounded loops inside data providers
+                if (val <= 0 || val == Integer.MAX_VALUE) return defaultLimit;
+                return Math.min(val, defaultLimit);
+            }
         }
         return defaultLimit;
     }
 
-    private List<Map<String, Object>> searchRows(Map<String, Object> base) {
-        Map<String, Object> m = new HashMap<>(base);
+    /**
+     * Base search row with delta-date fields added.
+     * If the taxonomy has journeys, returns one row per journey (up to 10) so the
+     * cycle-rows logic in tryCompareOneApi can try each journey individually.
+     * Each row carries "_single_journey" so the caller can narrow the taxonomy.
+     */
+    private List<Map<String, Object>> searchRows(Map<String, Object> base,
+                                                  Map<String, List<String>> taxonomy) {
         String start = (String) base.get("start_date");
         String end = (String) base.get("end_date");
+        List<String> journeys = taxonomy != null ? taxonomy.getOrDefault("journeys", List.of()) : List.of();
+
+        // Always add delta-date base
+        Map<String, Object> baseWithDelta = new HashMap<>(base);
         if (start != null && end != null) {
-            m.put("start_date_previous", DateUtils.deltaStartDate(start, end));
-            m.put("end_date_previous", DateUtils.deltaEndDate(start));
+            baseWithDelta.put("start_date_previous", DateUtils.deltaStartDate(start, end));
+            baseWithDelta.put("end_date_previous", DateUtils.deltaEndDate(start));
         }
-        return Collections.singletonList(m);
+
+        if (journeys.isEmpty()) {
+            return Collections.singletonList(baseWithDelta);
+        }
+
+        // One row per journey — cycle-rows will try each until one returns data
+        List<Map<String, Object>> rows = new ArrayList<>();
+        List<String> limited = journeys.size() > 10 ? journeys.subList(0, 10) : journeys;
+        for (String journey : limited) {
+            Map<String, Object> m = new HashMap<>(baseWithDelta);
+            m.put("_single_journey", journey);
+            m.put("_label", "journey=" + journey);
+            rows.add(m);
+        }
+        return rows;
     }
 
     private List<Map<String, Object>> searchProductHistoryRows(Map<String, Object> base,
@@ -186,13 +216,18 @@ public class DataProviderRegistry {
         if (retailers.isEmpty() || journeys.isEmpty()) {
             return Collections.singletonList(new HashMap<>(base));
         }
+        // Return all retailer × journey combinations so the caller can cycle through until one has data
         List<Map<String, Object>> rows = new ArrayList<>();
-        int limit = getLimit(base, 3);
-        for (int i = 0; i < limit; i++) {
-            Map<String, Object> m = new HashMap<>(base);
-            m.put("retailer", retailers.get(i % retailers.size()));
-            m.put("journey", journeys.get(i % journeys.size()));
-            rows.add(m);
+        outer:
+        for (String retailer : retailers) {
+            for (String journey : journeys) {
+                Map<String, Object> m = new HashMap<>(base);
+                m.put("retailer", retailer);
+                m.put("journey", journey);
+                m.put("_label", retailer + " / " + journey);
+                rows.add(m);
+                if (rows.size() >= 15) break outer;
+            }
         }
         return rows;
     }
@@ -207,9 +242,15 @@ public class DataProviderRegistry {
             m.put("product_id", productId);
             return Collections.singletonList(m);
         }
-        Map<String, Object> m = new HashMap<>(base);
-        m.put("retailer", retailers.get(0));
-        m.put("product_id", productId);
-        return Collections.singletonList(m);
+        // Return one row per retailer so the caller can cycle through until one has data
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (String retailer : retailers) {
+            Map<String, Object> m = new HashMap<>(base);
+            m.put("retailer", retailer);
+            m.put("product_id", productId);
+            m.put("_label", "Retailer " + retailer);
+            rows.add(m);
+        }
+        return rows;
     }
 }
