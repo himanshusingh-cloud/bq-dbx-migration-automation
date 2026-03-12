@@ -23,7 +23,7 @@ public class ValidationFormController {
     @GetMapping(value = {"", "/", "/validation-form"}, produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> form() throws JsonProcessingException {
         Map<String, List<String>> groups = new LinkedHashMap<>();
-        groups.put("analytics", ValidationService.PRODUCT_CONTENT_APIS);
+        groups.put("productContent", ValidationService.PRODUCT_CONTENT_APIS);
         groups.put("multiLocation2.0", ValidationService.MULTI_LOCATION_APIS);
         groups.put("search", ValidationService.SEARCH_APIS);
 
@@ -75,7 +75,7 @@ public class ValidationFormController {
                 "<div class=\"grid\">\n" +
                 "<div class=\"fld\"><label>client</label><input type=\"text\" id=\"client\" placeholder=\"mondelez-fr\" required></div>\n" +
                 "<div class=\"fld\"><label>environment</label><select id=\"env\"><option value=\"test\">test</option><option value=\"staging\">staging</option><option value=\"prod\">prod</option></select></div>\n" +
-                "<div class=\"fld\"><label>apiGroup</label><select id=\"apiGroup\"><option value=\"analytics\">analytics</option><option value=\"multiLocation2.0\">multiLocation2.0</option><option value=\"search\">search</option></select></div>\n" +
+                "<div class=\"fld\"><label>apiGroup</label><select id=\"apiGroup\"><option value=\"productContent\">productContent</option><option value=\"multiLocation2.0\">multiLocation2.0</option><option value=\"search\">search</option></select></div>\n" +
                 "<div class=\"fld\"><label>startDate</label><input type=\"text\" id=\"startDate\" value=\"2026-02-01\"></div>\n" +
                 "<div class=\"fld\"><label>endDate</label><input type=\"text\" id=\"endDate\" value=\"2026-02-09\"></div>\n" +
                 "</div>\n" +

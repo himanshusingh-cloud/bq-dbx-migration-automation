@@ -47,6 +47,10 @@ public class DataProviderRegistry {
             case "multiLocation":
                 rows = Collections.singletonList(new HashMap<>(baseParams));
                 break;
+            case "clientOnly":
+                // Settings/config APIs that only need client_id (no dates, no taxonomy filters)
+                rows = Collections.singletonList(new HashMap<>(baseParams));
+                break;
             case "search":
                 rows = searchRows(baseParams, taxonomy);
                 break;

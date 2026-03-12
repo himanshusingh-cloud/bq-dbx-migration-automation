@@ -108,6 +108,16 @@ public class ConfigResolver {
             log.error("Failed to load export config", e);
             throw new RuntimeException("Failed to load export config", e);
         }
+        try (InputStream in = getClass().getResourceAsStream("/config/apis/settings-apis.yaml")) {
+            if (in != null) {
+                ApiDefinition def = yamlMapper.readValue(in, ApiDefinition.class);
+                apiGroups.put("settings", def);
+                log.info("Loaded API group 'settings' with {} APIs", def.getApis() != null ? def.getApis().size() : 0);
+            }
+        } catch (Exception e) {
+            log.error("Failed to load settings config", e);
+            throw new RuntimeException("Failed to load settings config", e);
+        }
     }
 
     public String getBaseUrl(String environment) {

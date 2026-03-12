@@ -389,6 +389,8 @@ public class TaxonomyFieldMappingRegistry {
         );
         mappings.put("searchRanking_create_job", searchRankingMapping);
         mappings.put("searchRanking_query", searchRankingMapping);
+        // Settings APIs — payload is client_id only, no taxonomy arrays needed
+        mappings.put("scorecardConfig", Map.of());
     }
 
     public Map<String, String> getFieldMappings(String templateName) {

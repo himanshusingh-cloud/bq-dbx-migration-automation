@@ -47,7 +47,8 @@ public class ValidationService {
     public static final List<String> SEARCH_APIS = Arrays.asList(
             "shareOfSearchByBrandV2", "shareOfSearch", "weightedShareOfSearch",
             "productSearchHistory", "searchRankTrends", "topFiveSearchTrends",
-            "shareOfSearchByRetailerV2", "shareOfSearchByJourneyV2"
+            "shareOfSearchByRetailerV2", "shareOfSearchByJourneyV2",
+            "shareOfShelfRetailerV2", "shareOfShelfV2"
     );
 
     public static final List<String> PRICING_APIS = Arrays.asList(

@@ -1,4 +1,4 @@
-apiGroup: analytics
+apiGroup: productContent
 apis:
   - apiId: productBasics
     endpoint: /analytics/query/productBasics
@@ -59,24 +59,4 @@ apis:
     endpoint: /analytics/query/productComplianceScoreband
     method: POST
     template: productComplianceScoreband
-    dataProvider: dateRanges
-  - apiId: shareOfSearchByRetailerV2
-    endpoint: /analytics/query/shareOfSearchByRetailerV2
-    method: POST
-    template: shareOfSearchByRetailerV2
-    dataProvider: dateRanges
-  - apiId: shareOfSearchByJourneyV2
-    endpoint: /analytics/query/shareOfSearchByJourneyV2
-    method: POST
-    template: shareOfSearchByJourneyV2
-    dataProvider: dateRanges
-  - apiId: shareOfShelfRetailerV2
-    endpoint: /analytics/query/shareOfShelfRetailerV2
-    method: POST
-    template: shareOfShelfRetailerV2
-    dataProvider: dateRanges
-  - apiId: shareOfShelfV2
-    endpoint: /analytics/query/shareOfShelfV2
-    method: POST
-    template: shareOfShelfV2
     dataProvider: dateRanges

@@ -39,22 +39,49 @@
         .status-badge.in-progress { background: rgba(227,179,65,.18); color: var(--warn);  border: 1px solid rgba(227,179,65,.3); }
         .status-badge.failed      { background: rgba(248,81,73,.18);  color: var(--danger); border: 1px solid rgba(248,81,73,.3); }
 
-        /* ── Score cards ── */
-        .scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
-        .sc { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.3rem 1rem 1rem; text-align: center; transition: transform .15s; }
-        .sc:hover { transform: translateY(-2px); }
+        /* ── Score cards (filter buttons) ── */
+        .scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .sc {
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 1.3rem 1rem 1rem; text-align: center;
+            cursor: pointer; user-select: none;
+            transition: transform .15s, box-shadow .2s, background .15s;
+        }
+        .sc:hover { transform: translateY(-3px); }
         .sc .num { font-size: 2.4rem; font-weight: 700; line-height: 1; }
         .sc .lbl { font-size: 0.72rem; color: var(--muted); margin-top: 0.45rem; text-transform: uppercase; letter-spacing: 0.08em; }
+        .sc .sc-hint { font-size: 0.65rem; color: var(--muted); margin-top: 0.3rem; opacity: 0; transition: opacity .15s; }
+        .sc:hover .sc-hint { opacity: 1; }
+
         .sc.pass { border-color: rgba(63,185,80,.35);  } .sc.pass .num { color: var(--pass);   }
-        .sc.mis  { border-color: rgba(248,81,73,.35);  } .sc.mis  .num { color: var(--danger); }
+        .sc.mis  { border-color: rgba(248,81,73,.35);  } .sc.mis  .num { color: #f97316; }
         .sc.emp  { border-color: rgba(167,139,250,.35);} .sc.emp  .num { color: var(--empty);  }
         .sc.fail { border-color: rgba(248,81,73,.45);  } .sc.fail .num { color: var(--danger); }
         .sc.prog { border-color: rgba(227,179,65,.35); } .sc.prog .num { color: var(--warn);   }
 
+        .sc.pass.active { background: rgba(63,185,80,.1);  border-color: var(--pass);    box-shadow: 0 0 0 2px rgba(63,185,80,.4);  }
+        .sc.mis.active  { background: rgba(249,115,22,.1); border-color: #f97316;         box-shadow: 0 0 0 2px rgba(249,115,22,.4); }
+        .sc.emp.active  { background: rgba(167,139,250,.1);border-color: var(--empty);   box-shadow: 0 0 0 2px rgba(167,139,250,.4); }
+        .sc.fail.active { background: rgba(248,81,73,.1);  border-color: var(--danger);  box-shadow: 0 0 0 2px rgba(248,81,73,.4);  }
+        .sc.prog.active { background: rgba(227,179,65,.1); border-color: var(--warn);    box-shadow: 0 0 0 2px rgba(227,179,65,.4); }
+
+        /* ── Filter indicator bar ── */
+        .filter-bar {
+            display: none; align-items: center; gap: 0.6rem;
+            background: rgba(0,212,170,.06); border: 1px solid rgba(0,212,170,.2);
+            border-radius: 8px; padding: 0.5rem 1rem; margin-bottom: 1.2rem;
+            font-size: 0.82rem; color: var(--accent);
+        }
+        .filter-bar.visible { display: flex; }
+        .filter-bar-icon { width: 14px; height: 14px; flex-shrink: 0; }
+        .filter-clear { margin-left: auto; cursor: pointer; font-size: 0.78rem; color: var(--muted); background: none; border: none; font-family: inherit; padding: 0; }
+        .filter-clear:hover { color: var(--text); }
+
         /* ── Section heading ── */
-        .sec-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0; margin-top: 2.2rem; margin-bottom: 0.8rem; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
-        .sec-hdr h2 { font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
-        .sec-count { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
+        .sec-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0; margin-top: 2rem; margin-bottom: 0.8rem; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+        .sec-hdr h2 { font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 0.55rem; }
+        .sec-icon { width: 17px; height: 17px; flex-shrink: 0; }
+        .sec-count { font-size: 0.85rem; font-weight: 400; color: var(--muted); margin-left: 0.2rem; }
         .sec-toggle { font-size: 0.95rem; color: var(--muted); }
         .sec-body.collapsed { display: none; }
 
@@ -70,7 +97,7 @@
         /* ── Chips ── */
         .chip { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 5px; font-size: 0.75rem; font-weight: 500; }
         .chip.pass    { background: rgba(63,185,80,.18);   color: var(--pass);   border: 1px solid rgba(63,185,80,.3); }
-        .chip.mis     { background: rgba(248,81,73,.18);   color: var(--danger); border: 1px solid rgba(248,81,73,.3); }
+        .chip.mis     { background: rgba(249,115,22,.18);  color: #f97316;       border: 1px solid rgba(249,115,22,.3); }
         .chip.emp     { background: rgba(167,139,250,.18); color: var(--empty);  border: 1px solid rgba(167,139,250,.3); }
         .chip.fail    { background: rgba(248,81,73,.22);   color: var(--danger); border: 1px solid rgba(248,81,73,.4); }
         .chip.neutral { background: rgba(139,148,158,.15); color: var(--muted);  border: 1px solid rgba(139,148,158,.25); }
@@ -78,7 +105,7 @@
 
         /* ── Links inside card body ── */
         .body-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; margin-top: 0.75rem; margin-bottom: 0.2rem; font-size: 0.85rem; }
-        .body-links a { color: var(--accent); text-decoration: none; }
+        .body-links a { color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; }
         .body-links a:hover { text-decoration: underline; }
 
         /* ── Error / Empty message bars ── */
@@ -96,7 +123,7 @@
 
         /* ── Curl action buttons ── */
         .action-btns { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; }
-        .act-btn { padding: 0.38rem 0.9rem; border-radius: 6px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border: 1px solid; font-family: 'Outfit', sans-serif; background: transparent; transition: background .15s; }
+        .act-btn { padding: 0.38rem 0.9rem; border-radius: 6px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border: 1px solid; font-family: 'Outfit', sans-serif; background: transparent; transition: background .15s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem; }
         .act-btn.dbx { color: var(--info);   border-color: rgba(88,166,255,.4); }
         .act-btn.dbx:hover { background: rgba(88,166,255,.12); }
         .act-btn.bq  { color: var(--accent); border-color: rgba(0,212,170,.4); }
@@ -122,7 +149,7 @@
         /* ── Misc ── */
         .empty-state { color: var(--muted); font-size: 0.88rem; font-style: italic; padding: 0.6rem 0; }
         .note-text   { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
-        .refresh-note { font-size: 0.75rem; color: var(--muted); margin-top: 1.75rem; text-align: right; }
+        .refresh-note { font-size: 0.75rem; color: var(--muted); margin-top: 1.75rem; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; }
     </style>
 </head>
 <body>
@@ -138,6 +165,22 @@ var suiteId = window.location.pathname.split('/').filter(Boolean).pop() || '';
 document.getElementById('suiteIdDisplay').textContent = suiteId || '(none)';
 var pollInterval = 3000, pollTimer = null;
 var openCards = {}, collapsedSecs = {};
+var activeFilter = null;
+
+/* ── SVG icon library ── */
+var ICONS = {
+    pass: '<svg class="sec-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.5l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    mis:  '<svg class="sec-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2.5l5.5 10.5H2.5L8 2.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r="0.75" fill="currentColor"/></svg>',
+    emp:  '<svg class="sec-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 9.5h3.5l1 1.5h3l1-1.5H14" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 9.5V13a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 9.5 5.2 3h5.6l1.7 6.5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.5 6.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="1.5 1.5"/></svg>',
+    fail: '<svg class="sec-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warn: '<svg class="sec-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.5V8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11" r="0.85" fill="currentColor"/></svg>',
+    link: '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 3H2a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 1h3v3M11 1L6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    search: '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 8l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    filter: '<svg class="filter-bar-icon" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 3h12M3 7h8M5 11h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
+};
+
+/* ── Filter labels for display ── */
+var FILTER_LABELS = { pass: 'Passed', mis: 'Mismatch', emp: 'Empty Both', fail: 'Failed', prog: 'In Progress' };
 
 /* ─── fetch ─── */
 async function fetchReport() {
@@ -179,18 +222,26 @@ function render(data) {
     html += '<div class="meta-pill"><span class="status-badge ' + statusClass + '">' + esc(data.suiteStatus||'UNKNOWN') + '</span></div>';
     html += '</div>';
 
-    /* Scores */
+    /* Score cards (filter buttons) */
     html += '<div class="scores">';
-    html += sc(passed.length, 'Passed', 'pass');
-    html += sc(mismatch.length, 'Mismatch', 'mis');
-    html += sc(emptyB.length, 'Empty Both', 'emp');
-    html += sc(failed.length, 'Failed', 'fail');
+    html += sc(passed.length,   'Passed',      'pass');
+    html += sc(mismatch.length, 'Mismatch',    'mis');
+    html += sc(emptyB.length,   'Empty Both',  'emp');
+    html += sc(failed.length,   'Failed',      'fail');
     if (inProg.length) html += sc(inProg.length, 'In Progress', 'prog');
     html += '</div>';
 
+    /* Filter indicator bar */
+    html += '<div class="filter-bar" id="filter-bar">'
+          + ICONS.filter
+          + '<span id="filter-bar-text">Showing: —</span>'
+          + '<button class="filter-clear" onclick="clearFilter()">Clear filter ✕</button>'
+          + '</div>';
+
     /* ── In Progress ── */
     if (inProg.length) {
-        html += secHdr('prog', '⏳ In Progress', inProg.length, 'warn');
+        html += '<div id="sec-prog">';
+        html += secHdr('prog', 'In Progress', inProg.length, 'warn');
         html += '<div class="sec-body" id="body-prog">';
         inProg.forEach(r => {
             html += '<div class="prog-card"><div class="spinner"></div><div>'
@@ -198,11 +249,12 @@ function render(data) {
                   + '<div class="prog-sub">Running DBX vs BQ comparison&hellip;</div>'
                   + '</div></div>';
         });
-        html += '</div>';
+        html += '</div></div>';
     }
 
     /* ── Passed ── */
-    html += secHdr('passed', '✅ Passed', passed.length, 'pass');
+    html += '<div id="sec-passed">';
+    html += secHdr('passed', 'Passed', passed.length, 'pass');
     html += '<div class="sec-body" id="body-passed">';
     if (!passed.length) { html += '<div class="empty-state">No APIs passed yet.</div>'; }
     else {
@@ -217,10 +269,11 @@ function render(data) {
                 buildPassBody(r));
         });
     }
-    html += '</div>';
+    html += '</div></div>';
 
     /* ── Mismatch ── */
-    html += secHdr('mismatch', '⚠️ Mismatch', mismatch.length, 'mis');
+    html += '<div id="sec-mismatch">';
+    html += secHdr('mismatch', 'Mismatch', mismatch.length, 'mis');
     html += '<div class="sec-body" id="body-mismatch">';
     if (!mismatch.length) { html += '<div class="empty-state">No mismatches.</div>'; }
     else {
@@ -235,10 +288,11 @@ function render(data) {
                 buildMismatchBody(m));
         });
     }
-    html += '</div>';
+    html += '</div></div>';
 
     /* ── Empty Both ── */
-    html += secHdr('empty', '📭 Empty Response — Both DBX & BQ', emptyB.length, 'emp');
+    html += '<div id="sec-empty">';
+    html += secHdr('empty', 'Empty Response — Both DBX & BQ', emptyB.length, 'emp');
     html += '<div class="sec-body" id="body-empty">';
     if (!emptyB.length) { html += '<div class="empty-state">No empty-response APIs.</div>'; }
     else {
@@ -249,10 +303,11 @@ function render(data) {
                 buildEmptyBody(e));
         });
     }
-    html += '</div>';
+    html += '</div></div>';
 
     /* ── Failed ── */
-    html += secHdr('failed', '❌ Failed APIs', failed.length, 'fail');
+    html += '<div id="sec-failed">';
+    html += secHdr('failed', 'Failed APIs', failed.length, 'fail');
     html += '<div class="sec-body" id="body-failed">';
     if (!failed.length) { html += '<div class="empty-state">No failed APIs.</div>'; }
     else {
@@ -263,13 +318,18 @@ function render(data) {
                 buildFailBody(f));
         });
     }
-    html += '</div>';
+    html += '</div></div>';
 
     var isDone = (data.suiteStatus||'').toUpperCase() === 'COMPLETED' || (data.suiteStatus||'').toUpperCase() === 'FAILED';
-    html += '<div class="refresh-note">' + (isDone ? '✓ Suite ' + esc(data.suiteStatus) + ' — auto-refresh stopped' : '&#8635; Auto-refreshes every ' + (pollInterval/1000) + 's') + '</div>';
+    html += '<div class="refresh-note">'
+          + (isDone
+              ? '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="var(--pass)" stroke-width="1.3"/><path d="M4 6.5l1.8 1.8 3.2-3.2" stroke="var(--pass)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Suite ' + esc(data.suiteStatus) + ' — auto-refresh stopped'
+              : '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 6.5A4.5 4.5 0 112.5 4" stroke="var(--muted)" stroke-width="1.3" stroke-linecap="round"/><path d="M2 2v2.5h2.5" stroke="var(--muted)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Auto-refreshes every ' + (pollInterval/1000) + 's')
+          + '</div>';
+
     document.getElementById('content').innerHTML = html;
 
-    // Restore open/collapsed state
+    /* Restore open/collapsed state */
     Object.keys(collapsedSecs).forEach(id => {
         if (collapsedSecs[id]) {
             var b = document.getElementById('body-' + id);
@@ -286,21 +346,75 @@ function render(data) {
             if (t) t.textContent = '▴';
         }
     });
+
+    /* Re-apply active filter */
+    applyFilter();
     scrollToHash();
+}
+
+/* ── Filter logic ── */
+function filterSection(key) {
+    if (activeFilter === key) {
+        activeFilter = null;
+    } else {
+        activeFilter = key;
+    }
+    applyFilter();
+}
+function clearFilter() {
+    activeFilter = null;
+    applyFilter();
+}
+function applyFilter() {
+    var scToSec = { pass: 'passed', mis: 'mismatch', emp: 'empty', fail: 'failed', prog: 'prog' };
+    var allSecs = ['prog', 'passed', 'mismatch', 'empty', 'failed'];
+
+    allSecs.forEach(function(secId) {
+        var wrapper = document.getElementById('sec-' + secId);
+        if (!wrapper) return;
+        var show = !activeFilter || scToSec[activeFilter] === secId;
+        wrapper.style.display = show ? '' : 'none';
+        if (show && activeFilter) {
+            var body = document.getElementById('body-' + secId);
+            if (body) body.classList.remove('collapsed');
+            var t = document.getElementById('tgl-' + secId);
+            if (t) t.textContent = '▾';
+        }
+    });
+
+    /* Update score card active states */
+    ['pass', 'mis', 'emp', 'fail', 'prog'].forEach(function(cls) {
+        var card = document.getElementById('sc-' + cls);
+        if (!card) return;
+        if (activeFilter === cls) card.classList.add('active');
+        else card.classList.remove('active');
+    });
+
+    /* Show/hide filter bar */
+    var bar = document.getElementById('filter-bar');
+    if (bar) {
+        if (activeFilter) {
+            bar.classList.add('visible');
+            var txt = document.getElementById('filter-bar-text');
+            if (txt) txt.textContent = 'Showing: ' + (FILTER_LABELS[activeFilter] || activeFilter);
+        } else {
+            bar.classList.remove('visible');
+        }
+    }
 }
 
 /* ── Card body builders ── */
 function buildPassBody(r) {
     var h = '<div class="body-links">';
-    if (r.mismatchReportURL) h += '<a href="' + esc(r.mismatchReportURL) + '">📄 View Diff Report</a>';
-    if (r.queryGenieUrl)     h += '<a href="' + esc(r.queryGenieUrl) + '" target="_blank">🔍 Query Genie</a>';
+    if (r.mismatchReportURL) h += '<a href="' + esc(r.mismatchReportURL) + '">' + ICONS.link + ' View Diff Report</a>';
+    if (r.queryGenieUrl)     h += '<a href="' + esc(r.queryGenieUrl) + '" target="_blank">' + ICONS.search + ' Query Genie</a>';
     h += '</div>';
     return h;
 }
 function buildMismatchBody(m) {
     var h = '<div class="body-links">';
-    if (m.mismatchReportURL) h += '<a href="' + esc(m.mismatchReportURL) + '">📄 View Full Diff Report</a>';
-    if (m.queryGenieUrl)     h += '<a href="' + esc(m.queryGenieUrl) + '" target="_blank">🔍 Query Genie</a>';
+    if (m.mismatchReportURL) h += '<a href="' + esc(m.mismatchReportURL) + '">' + ICONS.link + ' View Full Diff Report</a>';
+    if (m.queryGenieUrl)     h += '<a href="' + esc(m.queryGenieUrl) + '" target="_blank">' + ICONS.search + ' Query Genie</a>';
     h += '</div>';
     return h;
 }
@@ -310,9 +424,9 @@ function buildEmptyBody(e) {
     var hasQg   = e.queryGenieUrl;
     if (hasCurl || hasQg) {
         h += '<div class="action-btns">';
-        if (e.dbxCurl) h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(e.apiId) + '-dbx\',this)">Test DBX CURL ▾</button>';
-        if (e.bqCurl)  h += '<button class="act-btn bq"  onclick="toggleCurl(\'' + safeid(e.apiId) + '-bq\',this)">Test BQ CURL ▾</button>';
-        if (hasQg)     h += '<a href="' + esc(e.queryGenieUrl) + '" target="_blank" class="act-btn qg">🔍 Query Genie</a>';
+        if (e.dbxCurl) h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(e.apiId) + '-dbx\',this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4h9" stroke="currentColor" stroke-width="1.2"/></svg>Test DBX CURL ▾</button>';
+        if (e.bqCurl)  h += '<button class="act-btn bq"  onclick="toggleCurl(\'' + safeid(e.apiId) + '-bq\',this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4h9" stroke="currentColor" stroke-width="1.2"/></svg>Test BQ CURL ▾</button>';
+        if (hasQg)     h += '<a href="' + esc(e.queryGenieUrl) + '" target="_blank" class="act-btn qg">' + ICONS.search + ' Query Genie</a>';
         h += '</div>';
         if (e.dbxCurl) h += curlPanelHtml(safeid(e.apiId) + '-dbx', 'DBX_ONLY CURL', e.dbxCurl);
         if (e.bqCurl)  h += curlPanelHtml(safeid(e.apiId) + '-bq',  'BQ_ONLY CURL',  e.bqCurl);
@@ -320,10 +434,8 @@ function buildEmptyBody(e) {
     return h;
 }
 function parseFailStep(part) {
-    // "DBX HTTP 200 (OK)" or "BQ HTTP 500: ..." (old format, no colon after label)
     var m = part.match(/^(DBX|BQ)\s+(HTTP\s+\d+.*)/);
     if (m) return { label: m[1], rest: m[2] };
-    // "create-job: HTTP 200 (OK)" or "trigger: HTTP 500: ..." (new format, colon after label)
     var ci = part.indexOf(':');
     if (ci > 0) return { label: part.substring(0, ci).trim(), rest: part.substring(ci + 1).trim() };
     return { label: null, rest: part };
@@ -356,10 +468,10 @@ function buildFailBody(f) {
     var hasCurl = f.testCurl || f.dbxCurl || f.bqCurl;
     if (hasCurl || f.queryGenieUrl) {
         h += '<div class="action-btns">';
-        if (f.testCurl) h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(f.apiId) + '-test\',this)">Test CURL ▾</button>';
-        if (f.dbxCurl)  h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(f.apiId) + '-dbx\',this)">Test DBX CURL ▾</button>';
-        if (f.bqCurl)   h += '<button class="act-btn bq"  onclick="toggleCurl(\'' + safeid(f.apiId) + '-bq\',this)">Test BQ CURL ▾</button>';
-        if (f.queryGenieUrl) h += '<a href="' + esc(f.queryGenieUrl) + '" target="_blank" class="act-btn qg">🔍 Query Genie</a>';
+        if (f.testCurl) h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(f.apiId) + '-test\',this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4h9" stroke="currentColor" stroke-width="1.2"/></svg>Test CURL ▾</button>';
+        if (f.dbxCurl)  h += '<button class="act-btn dbx" onclick="toggleCurl(\'' + safeid(f.apiId) + '-dbx\',this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4h9" stroke="currentColor" stroke-width="1.2"/></svg>Test DBX CURL ▾</button>';
+        if (f.bqCurl)   h += '<button class="act-btn bq"  onclick="toggleCurl(\'' + safeid(f.apiId) + '-bq\',this)"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4h9" stroke="currentColor" stroke-width="1.2"/></svg>Test BQ CURL ▾</button>';
+        if (f.queryGenieUrl) h += '<a href="' + esc(f.queryGenieUrl) + '" target="_blank" class="act-btn qg">' + ICONS.search + ' Query Genie</a>';
         h += '</div>';
         if (f.testCurl) h += curlPanelHtml(safeid(f.apiId) + '-test', 'Test CURL (no x-bqdbx-config)', f.testCurl);
         if (f.dbxCurl)  h += curlPanelHtml(safeid(f.apiId) + '-dbx', 'DBX_ONLY CURL', f.dbxCurl);
@@ -369,14 +481,22 @@ function buildFailBody(f) {
 }
 
 /* ── HTML helpers ── */
-function mpill(lbl, val) { return '<div class="meta-pill"><strong>' + lbl + '</strong>' + esc(val) + '</div>'; }
-function sc(n, lbl, cls) { return '<div class="sc ' + cls + '"><div class="num">' + n + '</div><div class="lbl">' + lbl + '</div></div>'; }
-function chip(cls, txt)   { return '<span class="chip ' + cls + '">' + esc(txt) + '</span>'; }
+function mpill(lbl, val) { return '<div class="meta-pill"><strong>' + lbl + '&nbsp;</strong>' + esc(val) + '</div>'; }
+function sc(n, lbl, cls) {
+    return '<div class="sc ' + cls + '" id="sc-' + cls + '" onclick="filterSection(\'' + cls + '\')" title="Click to filter by ' + lbl + '">'
+        + '<div class="num">' + n + '</div>'
+        + '<div class="lbl">' + lbl + '</div>'
+        + '<div class="sc-hint">click to filter</div>'
+        + '</div>';
+}
+function chip(cls, txt) { return '<span class="chip ' + cls + '">' + esc(txt) + '</span>'; }
 
 function secHdr(id, title, count, colorKey) {
-    var colors = { pass:'var(--pass)', mis:'var(--danger)', emp:'var(--empty)', fail:'var(--danger)', warn:'var(--warn)' };
-    return '<div class="sec-hdr" onclick="toggleSec(\'' + id + '\')">'
-        + '<h2 style="color:' + colors[colorKey] + '">' + title + ' <span class="sec-count">(' + count + ')</span></h2>'
+    var colors = { pass:'var(--pass)', mis:'#f97316', emp:'var(--empty)', fail:'var(--danger)', warn:'var(--warn)' };
+    return '<div class="sec-hdr" id="hdr-' + id + '" onclick="toggleSec(\'' + id + '\')">'
+        + '<h2 style="color:' + colors[colorKey] + '">'
+        + ICONS[colorKey] + esc(title)
+        + ' <span class="sec-count">(' + count + ')</span></h2>'
         + '<span class="sec-toggle" id="tgl-' + id + '">▾</span></div>';
 }
 function apiCard(cid, name, chips, bodyHtml) {
@@ -435,11 +555,6 @@ function fallbackCopy(t) {
 function esc(s) { if (s == null) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 function safeid(s) { return String(s).replace(/[^a-zA-Z0-9]/g, '_'); }
 function scrollToHash() { var h = window.location.hash; if (h) { var el = document.querySelector(h); if (el) el.scrollIntoView({ behavior: 'smooth' }); } }
-
-/* ── Click delegation — card slab (passed) navigates on click ── */
-document.getElementById('content').addEventListener('click', function(e) {
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('a') || e.target.closest('.act-btn')) return;
-});
 
 pollTimer = setInterval(fetchReport, pollInterval);
 fetchReport();

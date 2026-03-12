@@ -1,0 +1,62 @@
+apiGroup: settings
+apis:
+  - apiId: scorecardConfigurationMeasureDefinition
+    endpoint: /analytics/query/scorecardConfigurationMeasureDefinition
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationMeasureWeights
+    endpoint: /analytics/query/scorecardConfigurationMeasureWeights
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationMeasureGroupWeights
+    endpoint: /analytics/query/scorecardConfigurationMeasureGroupWeights
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationRetailerWeights
+    endpoint: /analytics/query/scorecardConfigurationRetailerWeights
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationRetailerBrandWeights
+    endpoint: /analytics/query/scorecardConfigurationRetailerBrandWeights
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationRetailerMeasureWeights
+    endpoint: /analytics/query/scorecardConfigurationRetailerMeasureWeights
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationSearchTermWeights
+    endpoint: /analytics/query/scorecardConfigurationSearchTermWeights
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationMeasureTargets
+    endpoint: /analytics/query/scorecardConfigurationMeasureTargets
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationMeasureGroupTargets
+    endpoint: /analytics/query/scorecardConfigurationMeasureGroupTargets
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationRetailerTargets
+    endpoint: /analytics/query/scorecardConfigurationRetailerTargets
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationRetailerMeasureTargets
+    endpoint: /analytics/query/scorecardConfigurationRetailerMeasureTargets
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
+  - apiId: scorecardConfigurationRetailerBrandTargets
+    endpoint: /analytics/query/scorecardConfigurationRetailerBrandTargets
+    method: POST
+    template: scorecardConfig
+    dataProvider: clientOnly
